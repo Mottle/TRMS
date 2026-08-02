@@ -63,8 +63,8 @@ The block entity persists `MoldFormat`, `Pattern`, `Revision`, optional
 placed-only `FillMaterial` ID, and accumulated `CoolingTicks`; it emits a
 standard block-entity update packet after every accepted carving, filling, or
 20-tick cooling update. A non-empty, unfilled mold accepts one
-right-click with a copper or iron ingot without requiring a lodestone. Survival
-and adventure consume one ingot, while creative does not. Filling is one-way:
+right-click with a copper, iron, or gold ingot without requiring a lodestone.
+Survival and adventure consume one ingot, while creative does not. Filling is one-way:
 it blocks further carving and refilling, starts at light level 15, and never
 creates a real fluid. The Extension advances and records cooling by 20 loaded
 ticks at a time; after 600 ticks it drops exactly one `trms:weapon_part`

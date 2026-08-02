@@ -22,7 +22,7 @@ therefore keeps its carved pattern but starts unfilled at revision zero.
 
 The `common` module owns stable material IDs. The Extension owns item-to-material
 validation and persistence, while the Mod owns per-material names, colors, and
-rendering. Copper and iron initially accept only their corresponding vanilla
+rendering. Copper, iron, and gold accept only their corresponding vanilla
 ingots. A non-empty unfilled Mold accepts one use without a lodestone; survival
 and adventure consume one ingot, while creative does not. Filled Molds reject
 both refilling and further carving.
@@ -35,7 +35,7 @@ shared internal faces are removed. Project-owned greyscale animated texture
 bases are derived from vanilla `lava_still` (top) and `lava_flow` (sides), so
 each material's fixed tint can change the texture's hue rather than merely
 darkening orange lava. Filled molds locally emit occasional lava-like sparks,
-smoke, and ambience. Copper and iron emit level-15 light like lava, but create
+smoke, and ambience. Copper, iron, and gold emit level-15 light like lava, but create
 no `FluidState`, flow, collision, heat, or casting result.
 
 ## Consequences

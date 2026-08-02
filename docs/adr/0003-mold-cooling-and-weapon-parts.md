@@ -13,7 +13,7 @@ changing the existing v1 configuration and carving transports.
 
 ## Decision
 
-A successful copper- or iron-ingot fill starts at accumulated cooling tick
+A successful copper-, iron-, or gold-ingot fill starts at accumulated cooling tick
 `0`. The Extension schedules one authoritative block tick every 20 loaded
 server ticks and persists that exact elapsed tick count (`0..580`, in steps of
 20), rather than a synthetic seconds or visual-stage counter. The thirtieth
@@ -39,9 +39,11 @@ envelope must explicitly contain `CoolingTicks`; the old `CoolingStage` data is
 rejected rather than migrated or silently reset to zero elapsed ticks.
 
 `trms:weapon_part` uses a dynamic client item model that renders the exact,
-closed one-pixel-thick cavity silhouette. Copper and iron parts use the same
-predefined copper and silver colors as their molten material, over a neutral
-solid-metal texture; they do not use the animated lava texture.
+closed one-pixel-thick cavity silhouette. Copper and iron parts use the same predefined
+copper and silver colors as their molten material; gold parts use a more restrained warm-gold
+color than the high-luminance yellow-gold molten fill. They render over an opaque white
+solid-metal base texture and do not use the animated lava texture. The white base
+ensures vertex tint and ordinary face lighting are the only side-surface color variation.
 
 ## Consequences
 

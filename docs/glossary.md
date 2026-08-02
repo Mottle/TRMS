@@ -52,7 +52,7 @@ The persisted authoritative cold-time value of a filled Mold: `0..580` in increm
 
 **Fill material**
 
-A namespaced, extensible material identity such as `trms:copper` or `trms:iron`. A material provides its accepted input item, display name, tinted animated lava-like texture, and light emission behavior.
+A namespaced, extensible material identity such as `trms:copper`, `trms:iron`, or `trms:gold`. A material provides its accepted input item, display name, tinted animated lava-like texture, and light emission behavior.
 
 **Molten fill**
 

@@ -28,8 +28,8 @@ shape remains the fixed `16 x 16 x 2` thin slab.
 When the server marks a non-empty mold filled, the renderer covers its carved
 cells with a contiguous, visual-only molten surface. It sits slightly below the
 ceramic rim, removes internal shared faces, uses project-owned greyscale copies
-of the vanilla lava animations, and applies a stable copper or silver-iron
-tint. The server synchronizes accumulated cooling ticks in 20-tick increments.
+of the vanilla lava animations, and applies a stable copper, silver-iron, or
+gold tint. The server synchronizes accumulated cooling ticks in 20-tick increments.
 The first 300 ticks keep emitted light at 15 and retain full tint and effects;
 from tick 300, derived visual stages lower emitted light to 1 and tint
 brightness to 35%, while client-local lava sparks, smoke, pop sounds, and
@@ -39,8 +39,9 @@ Unsupported future material IDs use a conspicuous fallback tint.
 
 At the final 600-tick cooling update the server emits a `trms:weapon_part`
 item. Its dynamically rendered model is the exact closed single-pixel-thick
-`MoldPattern` silhouette without the ceramic shell, and uses the same copper or
-silver-iron material colour as the molten source. It is a future weapon
+`MoldPattern` silhouette without the ceramic shell. Copper and iron use the same
+material colour as their molten source; gold uses a more restrained warm-gold tint
+than the brighter molten fill. It is a future weapon
 assembly input, with no independent use behavior in this iteration.
 
 Each placed mold also has a horizontal `facing` state and faces the player who
