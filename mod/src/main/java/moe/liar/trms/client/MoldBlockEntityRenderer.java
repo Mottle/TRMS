@@ -41,7 +41,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         state.pattern = pattern;
         state.revision = blockEntity.revision();
         state.fillMaterial = blockEntity.fillMaterial();
-        state.coolingStage = blockEntity.coolingStage();
+        state.coolingTicks = blockEntity.coolingTicks();
         state.facing = facing;
         state.showCarvingGuide = shouldShowCarvingGuide(blockEntity);
         state.carvingGuide = MoldCarvingGuide.Layout.EMPTY;
@@ -96,7 +96,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
                     sprites.get(MoldMeshBuilder.MOLTEN_FLOW_SPRITE)
             );
             fillMesh.submitTintedWorld(poseStack, collector, state.lightCoords,
-                    fillVisual.colorForCoolingStage(state.coolingStage));
+                    fillVisual.colorForCoolingTicks(state.coolingTicks));
         }
         if (state.showCarvingGuide) {
             MoldCarvingGuide.submit(poseStack, collector, state.carvingGuide,

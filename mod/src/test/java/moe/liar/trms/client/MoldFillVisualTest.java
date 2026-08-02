@@ -3,6 +3,7 @@ package moe.liar.trms.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -39,7 +40,9 @@ class MoldFillVisualTest {
     void coolingDarksTheMaterialTintWithoutMakingTheFillTransparent() {
         MoldFillVisual copper = MoldFillVisual.forMaterial(MoldFillMaterial.COPPER);
 
-        int cooled = copper.colorForCoolingStage(9);
+        assertEquals(MoldFillVisual.COPPER_COLOR, copper.colorForCoolingTicks(280));
+        assertTrue(copper.colorForCoolingTicks(300) != MoldFillVisual.COPPER_COLOR);
+        int cooled = copper.colorForCoolingTicks(580);
 
         assertEquals(0xFF, cooled >>> 24);
         assertEquals(Math.round((MoldFillVisual.COPPER_COLOR >>> 16 & 0xFF) * MoldCooling.FINAL_BRIGHTNESS),

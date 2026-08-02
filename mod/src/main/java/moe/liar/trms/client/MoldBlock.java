@@ -34,7 +34,7 @@ public final class MoldBlock extends Block implements EntityBlock {
     public static final BooleanProperty FILLED = BooleanProperty.create("filled");
     /** Mirrors the server's visible cooling stage so client light prediction matches the authoritative block. */
     public static final IntegerProperty COOLING_STAGE = IntegerProperty.create(
-            "cooling_stage", 0, MoldCooling.STAGE_COUNT - 1);
+            "cooling_stage", 0, MoldCooling.VISUAL_STAGE_COUNT - 1);
 
     public MoldBlock(BlockBehaviour.Properties properties) {
         super(properties);
@@ -98,7 +98,7 @@ public final class MoldBlock extends Block implements EntityBlock {
             return;
         }
         if (level.getBlockEntity(pos) instanceof MoldBlockEntity mold && mold.isFilled()) {
-            MoldMoltenEffects.animate(level, pos, mold.pattern(), facing(state), mold.coolingStage(), random);
+            MoldMoltenEffects.animate(level, pos, mold.pattern(), facing(state), mold.coolingTicks(), random);
         }
     }
 

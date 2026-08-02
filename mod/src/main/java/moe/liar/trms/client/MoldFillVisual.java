@@ -36,8 +36,8 @@ final class MoldFillVisual {
         };
     }
 
-    int colorForCoolingStage(int stage) {
-        float brightness = MoldCooling.brightness(stage);
+    int colorForCoolingTicks(int elapsedTicks) {
+        float brightness = MoldCooling.brightnessForElapsedTicks(elapsedTicks);
         return ARGB.color(ARGB.alpha(color),
                 Math.round(ARGB.red(color) * brightness),
                 Math.round(ARGB.green(color) * brightness),

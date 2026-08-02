@@ -13,6 +13,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.storage.TagValueInput;
 import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
 import org.junit.jupiter.api.Test;
 
 class MoldBlockEntityFillDataTest {
@@ -40,6 +41,17 @@ class MoldBlockEntityFillDataTest {
     }
 
     @Test
+    void clientRejectsFilledUpdatesThatOmitTheAuthoritativeCoolingTicks() {
+        TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
+        CompoundTag tag = output.buildResult();
+        ValueInput input = TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, tag);
+
+        assertEquals(0, MoldBlockEntity.readCoolingTicks(input, null));
+        assertThrows(IllegalStateException.class,
+                () -> MoldBlockEntity.readCoolingTicks(input, MoldFillMaterial.COPPER));
+    }
+
+    @Test
     void clientRejectsMalformedAndImpossibleServerFillState() {
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
         output.putString(MoldPersistence.FILL_MATERIAL_KEY, " ");
@@ -50,10 +62,14 @@ class MoldBlockEntityFillDataTest {
         assertThrows(IllegalStateException.class,
                 () -> MoldBlockEntity.validateFillState(MoldPattern.EMPTY, MoldFillMaterial.IRON, 0));
         assertDoesNotThrow(() -> MoldBlockEntity.validateFillState(
-                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 4));
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 80));
+        assertDoesNotThrow(() -> MoldBlockEntity.validateFillState(
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 580));
         assertThrows(IllegalStateException.class, () -> MoldBlockEntity.validateFillState(
                 MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 10));
         assertThrows(IllegalStateException.class, () -> MoldBlockEntity.validateFillState(
-                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), null, 1));
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 600));
+        assertThrows(IllegalStateException.class, () -> MoldBlockEntity.validateFillState(
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), null, 20));
     }
 }

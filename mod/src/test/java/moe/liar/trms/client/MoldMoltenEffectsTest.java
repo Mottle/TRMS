@@ -19,10 +19,12 @@ class MoldMoltenEffectsTest {
     }
 
     @Test
-    void coolingLinearlyReducesButNeverEliminatesLocalMoltenEffectChances() {
+    void effectsRemainAtFullRateUntilTheFifteenthSecondThenDecreaseWithCoolingTicks() {
         assertEquals(50, MoldMoltenEffects.intervalForCooling(50, 0));
-        assertEquals(143, MoldMoltenEffects.intervalForCooling(50, 9));
-        assertEquals(286, MoldMoltenEffects.intervalForCooling(100, 9));
+        assertEquals(50, MoldMoltenEffects.intervalForCooling(50, 280));
+        assertEquals(54, MoldMoltenEffects.intervalForCooling(50, 300));
+        assertEquals(143, MoldMoltenEffects.intervalForCooling(50, 580));
+        assertEquals(286, MoldMoltenEffects.intervalForCooling(100, 580));
     }
 
     private static void assertSurfaceInCell(MoldPattern pattern, Direction facing, int minX, int minZ) {

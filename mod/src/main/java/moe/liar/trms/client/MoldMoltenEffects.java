@@ -25,12 +25,12 @@ final class MoldMoltenEffects {
      * Reuses vanilla lava's restrained ambient cadence without creating a FluidState or server event.
      * The caller supplies a client-side level and the server-synchronized pattern snapshot.
      */
-    static void animate(Level level, BlockPos pos, MoldPattern pattern, Direction facing, int coolingStage,
+    static void animate(Level level, BlockPos pos, MoldPattern pattern, Direction facing, int coolingTicks,
                         RandomSource random) {
         if (pattern.carvedCount() == 0 || level.getBlockState(pos.above()).isSolidRender()) {
             return;
         }
-        if (random.nextInt(intervalForCooling(SPARK_INTERVAL, coolingStage)) == 0) {
+        if (random.nextInt(intervalForCooling(SPARK_INTERVAL, coolingTicks)) == 0) {
             Surface surface = randomSurface(pattern, facing, random);
             level.addParticle(ParticleTypes.LAVA,
                     pos.getX() + surface.x(), pos.getY() + PARTICLE_Y, pos.getZ() + surface.z(),
@@ -39,13 +39,13 @@ final class MoldMoltenEffects {
                     SoundEvents.LAVA_POP, SoundSource.AMBIENT,
                     0.16F + random.nextFloat() * 0.08F, 0.90F + random.nextFloat() * 0.15F, false);
         }
-        if (random.nextInt(intervalForCooling(SMOKE_INTERVAL, coolingStage)) == 0) {
+        if (random.nextInt(intervalForCooling(SMOKE_INTERVAL, coolingTicks)) == 0) {
             Surface surface = randomSurface(pattern, facing, random);
             level.addParticle(ParticleTypes.LARGE_SMOKE,
                     pos.getX() + surface.x(), pos.getY() + PARTICLE_Y, pos.getZ() + surface.z(),
                     0.0D, 0.012D, 0.0D);
         }
-        if (random.nextInt(intervalForCooling(AMBIENT_SOUND_INTERVAL, coolingStage)) == 0) {
+        if (random.nextInt(intervalForCooling(AMBIENT_SOUND_INTERVAL, coolingTicks)) == 0) {
             level.playLocalSound(pos.getX() + 0.5D, pos.getY() + PARTICLE_Y, pos.getZ() + 0.5D,
                     SoundEvents.LAVA_AMBIENT, SoundSource.AMBIENT,
                     0.16F + random.nextFloat() * 0.08F, 0.90F + random.nextFloat() * 0.15F, false);
@@ -53,11 +53,11 @@ final class MoldMoltenEffects {
     }
 
     /** Lowers the probability in the same linear temperature curve as the material tint. */
-    static int intervalForCooling(int baseInterval, int coolingStage) {
+    static int intervalForCooling(int baseInterval, int coolingTicks) {
         if (baseInterval <= 0) {
             throw new IllegalArgumentException("Effect interval must be positive: " + baseInterval);
         }
-        return Math.max(1, Math.round(baseInterval / MoldCooling.brightness(coolingStage)));
+        return Math.max(1, Math.round(baseInterval / MoldCooling.brightnessForElapsedTicks(coolingTicks)));
     }
 
     /** Selects one actually filled canonical cell and rotates it into physical block-local coordinates. */

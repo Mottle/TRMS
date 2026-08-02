@@ -21,7 +21,7 @@ public final class MoldBlockEntity extends BlockEntity {
     private MoldPattern pattern = MoldPattern.EMPTY;
     private long revision;
     private @Nullable MoldFillMaterial fillMaterial;
-    private int coolingStage;
+    private int coolingTicks;
     /*
      * Render states are recreated every frame in Minecraft 26.1. Keep the
      * immutable derived data with this client BE instead; the BE's chunk/world
@@ -51,9 +51,9 @@ public final class MoldBlockEntity extends BlockEntity {
         return fillMaterial != null;
     }
 
-    /** Returns the server-authoritative visible cooling stage while this mold remains filled. */
-    public int coolingStage() {
-        return coolingStage;
+    /** Returns the server-authoritative elapsed cooling time while this mold remains filled. */
+    public int coolingTicks() {
+        return coolingTicks;
     }
 
     MoldRenderCache renderCache() {
@@ -63,7 +63,9 @@ public final class MoldBlockEntity extends BlockEntity {
     @Override
     protected void loadAdditional(ValueInput input) {
         super.loadAdditional(input);
-        int format = input.getIntOr(MoldPersistence.FORMAT_KEY, MoldPersistence.FORMAT_VERSION);
+        int format = input.getInt(MoldPersistence.FORMAT_KEY).orElseThrow(
+                () -> new IllegalStateException("Missing TRMS mold format")
+        );
         if (format != MoldPersistence.FORMAT_VERSION) {
             throw new IllegalStateException("Unsupported TRMS mold format: " + format);
         }
@@ -75,8 +77,8 @@ public final class MoldBlockEntity extends BlockEntity {
             throw new IllegalStateException("TRMS mold revision must not be negative");
         }
         fillMaterial = readFillMaterial(input);
-        coolingStage = input.getIntOr(MoldPersistence.COOLING_STAGE_KEY, 0);
-        validateFillState(pattern, fillMaterial, coolingStage);
+        coolingTicks = readCoolingTicks(input, fillMaterial);
+        validateFillState(pattern, fillMaterial, coolingTicks);
         renderCache.invalidate();
     }
 
@@ -87,7 +89,7 @@ public final class MoldBlockEntity extends BlockEntity {
         output.store(MoldPersistence.PATTERN_KEY, MoldPattern.CODEC, pattern);
         output.putLong(MoldPersistence.REVISION_KEY, revision);
         writeFillMaterial(output, fillMaterial);
-        output.putInt(MoldPersistence.COOLING_STAGE_KEY, coolingStage);
+        output.putInt(MoldPersistence.COOLING_TICKS_KEY, coolingTicks);
     }
 
     @Override
@@ -97,7 +99,7 @@ public final class MoldBlockEntity extends BlockEntity {
         // Fill state belongs only to the placed block entity and is stripped from
         // the item component on every placement.
         fillMaterial = null;
-        coolingStage = 0;
+        coolingTicks = 0;
         renderCache.invalidate();
     }
 
@@ -118,16 +120,25 @@ public final class MoldBlockEntity extends BlockEntity {
         }
     }
 
+    /** Reads the optional unfilled value and requires an explicit tick count for every filled mold. */
+    static int readCoolingTicks(ValueInput input, @Nullable MoldFillMaterial material) {
+        var savedCoolingTicks = input.getInt(MoldPersistence.COOLING_TICKS_KEY);
+        if (material != null && savedCoolingTicks.isEmpty()) {
+            throw new IllegalStateException("A filled TRMS mold must contain CoolingTicks");
+        }
+        return savedCoolingTicks.orElse(0);
+    }
+
     /** Mirrors the Extension's persistence invariant before a client render state observes it. */
-    static void validateFillState(MoldPattern pattern, @Nullable MoldFillMaterial material, int coolingStage) {
+    static void validateFillState(MoldPattern pattern, @Nullable MoldFillMaterial material, int coolingTicks) {
         Objects.requireNonNull(pattern, "pattern");
         if (pattern.carvedCount() == 0 && material != null) {
             throw new IllegalStateException("An empty TRMS mold cannot contain fill material");
         }
-        if (material != null && !MoldCooling.isValidStage(coolingStage)) {
-            throw new IllegalStateException("Invalid TRMS mold cooling stage: " + coolingStage);
+        if (material != null && !MoldCooling.isValidElapsedTicks(coolingTicks)) {
+            throw new IllegalStateException("Invalid TRMS mold cooling ticks: " + coolingTicks);
         }
-        if (material == null && coolingStage != 0) {
+        if (material == null && coolingTicks != 0) {
             throw new IllegalStateException("An unfilled TRMS mold cannot retain cooling progress");
         }
     }
