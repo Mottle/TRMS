@@ -58,10 +58,16 @@ public final class MoldMeshBuilder {
             BLOCK_ATLAS_TEXTURE,
             Identifier.fromNamespaceAndPath("trms", "block/molten_flow")
     );
-    /** Neutral, non-animated solid-metal detail texture used by cooled weapon-part item geometry. */
+    /**
+     * Uniform white, non-animated base texture for cooled weapon-part geometry.
+     *
+     * <p>Material hue comes entirely from the per-vertex tint. A textured
+     * vanilla metal block would multiply unwanted bands into the thin exposed
+     * side faces of a held casting.</p>
+     */
     public static final SpriteId SOLID_METAL_SPRITE = new SpriteId(
             BLOCK_ATLAS_TEXTURE,
-            Identifier.withDefaultNamespace("block/iron_block")
+            Identifier.fromNamespaceAndPath("trms", "block/solid_metal")
     );
     /**
      * Raw block-model bounds for the standard special-item presentation.
@@ -97,6 +103,14 @@ public final class MoldMeshBuilder {
     public static final org.joml.Vector3fc[] WEAPON_PART_ITEM_EXTENTS = {
             new org.joml.Vector3f(0.0625f, 0.46875f, 0.0625f),
             new org.joml.Vector3f(0.9375f, 0.53125f, 0.9375f)
+    };
+    /**
+     * Third-person bounds after lowering a casting below the inventory center
+     * while retaining a small gap above the lower hand edge.
+     */
+    public static final org.joml.Vector3fc[] WEAPON_PART_THIRD_PERSON_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.15625f, 0.0625f),
+            new org.joml.Vector3f(0.9375f, 0.21875f, 0.9375f)
     };
     /**
      * Bounds after a casting's XZ silhouette is mapped into the ordinary XY
@@ -253,11 +267,15 @@ public final class MoldMeshBuilder {
                             1.0f / 16.0f, lighting, 0xFFFFFFFF));
         }
 
-        /** Submits tinted dynamic world geometry using the block entity's actual world light. */
-        public void submitTintedWorld(PoseStack poseStack, SubmitNodeCollector collector, int light, int color) {
+        /**
+         * Submits tinted dynamic world geometry with the same per-vertex ambient
+         * occlusion and light coordinates as the ceramic mesh.
+         */
+        public void submitTintedWorld(PoseStack poseStack, SubmitNodeCollector collector, int light,
+                                      WorldLighting lighting, int color) {
             collector.submitCustomGeometry(poseStack, renderType,
                     (pose, vertices) -> render(pose, vertices, light, OverlayTexture.NO_OVERLAY,
-                            1.0f / 16.0f, null, color));
+                            1.0f / 16.0f, lighting, color));
         }
 
         public void submitItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
@@ -288,6 +306,16 @@ public final class MoldMeshBuilder {
                                                int overlay, MoldPattern pattern, boolean expandToGui, int tint) {
             poseStack.pushPose();
             centerWeaponPartItemGeometry(poseStack, pattern, expandToGui);
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
+            poseStack.popPose();
+        }
+
+        /** Submits a casting on the established low third-person hand-held plane. */
+        public void submitTintedThirdPersonWeaponPartItem(PoseStack poseStack, SubmitNodeCollector collector,
+                                                          int light, int overlay, MoldPattern pattern, int tint) {
+            poseStack.pushPose();
+            centerThirdPersonWeaponPartGeometry(poseStack, pattern);
             collector.submitCustomGeometry(poseStack, renderType,
                     (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
             poseStack.popPose();
@@ -339,11 +367,18 @@ public final class MoldMeshBuilder {
                 Face face = faces.get(faceIndex);
                 for (int index = 0; index < 4; index++) {
                     int vertexLight = lighting == null ? light : lighting.light(faceIndex, index);
-                    int vertexColor = lighting == null ? tint : lighting.color(faceIndex, index);
+                    int vertexColor = lighting == null
+                            ? tint
+                            : applyWorldLightingTint(lighting.color(faceIndex, index), tint);
                     face.vertex(vertices, pose, index, overlay, vertexLight, vertexColor, scale);
                 }
             }
         }
+    }
+
+    /** Multiplies a material tint by the grayscale ambient-occlusion colour sampled from the world. */
+    static int applyWorldLightingTint(int lightingColor, int tint) {
+        return ARGB.multiply(lightingColor, tint);
     }
 
     /**
@@ -366,6 +401,17 @@ public final class MoldMeshBuilder {
         poseStack.translate(0.5F, 0.5F, 0.5F);
         poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
         poseStack.translate(-presentation.centerX(), -0.03125F, -presentation.centerZ());
+    }
+
+    /**
+     * Moves a third-person casting five model pixels down from the centered
+     * inventory anchor. The base model's third-person display transform then
+     * places it relative to the player's actual up and forward axes, rather
+     * than letting the hand-held pitch rotate those adjustments.
+     */
+    static void centerThirdPersonWeaponPartGeometry(PoseStack poseStack, MoldPattern pattern) {
+        centerWeaponPartItemGeometry(poseStack, pattern, false);
+        poseStack.translate(0.0F, -5.0F / 16.0F, 0.0F);
     }
 
     /**
@@ -477,7 +523,24 @@ public final class MoldMeshBuilder {
     public static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                      BlockState blockState, MoldPattern pattern,
                                                      TextureAtlasSprite sprite, Direction facing) {
-        List<MoldMeshTopology.Quad> sourceQuads = MoldMeshTopology.build(pattern, false);
+        return captureWorldLighting(level, position, blockState, MoldMeshTopology.build(pattern, false), sprite, facing);
+    }
+
+    /**
+     * Samples fill-geometry ambient occlusion and lightmap coordinates for a
+     * molten material surface. This deliberately uses the same lighter and
+     * shade settings as the ceramic mesh, so cooling cannot make the two
+     * adjacent render paths diverge in a dark world.
+     */
+    public static WorldLighting captureFillWorldLighting(BlockAndTintGetter level, BlockPos position,
+                                                         BlockState blockState, MoldPattern pattern,
+                                                         TextureAtlasSprite sprite, Direction facing) {
+        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildFill(pattern), sprite, facing);
+    }
+
+    private static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
+                                                      BlockState blockState, List<MoldMeshTopology.Quad> sourceQuads,
+                                                      TextureAtlasSprite sprite, Direction facing) {
         List<MoldMeshTopology.Quad> quads = new ArrayList<>(sourceQuads.size());
         for (MoldMeshTopology.Quad quad : sourceQuads) {
             quads.add(MoldMeshTopology.rotateForPresentation(quad, facing));

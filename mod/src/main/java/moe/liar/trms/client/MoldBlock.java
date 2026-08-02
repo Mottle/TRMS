@@ -23,6 +23,7 @@ import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.redstone.Orientation;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
 
@@ -115,6 +116,18 @@ public final class MoldBlock extends Block implements EntityBlock {
             return Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, level, scheduledTickAccess, pos, direction, neighborPos, neighborState, random);
+    }
+
+    @Override
+    protected void neighborChanged(BlockState state, net.minecraft.world.level.Level level, BlockPos pos,
+                                   Block neighborBlock, Orientation orientation, boolean movedByPiston) {
+        super.neighborChanged(state, level, pos, neighborBlock, orientation, movedByPiston);
+        // Block-model ambient occlusion depends on neighbouring collision
+        // shapes, not just this mold's packed light. Re-sample lazily on the
+        // next extraction after a client-side neighbour update.
+        if (level.isClientSide() && level.getBlockEntity(pos) instanceof MoldBlockEntity mold) {
+            mold.renderCache().invalidate();
+        }
     }
 
     /** Mirrors the Extension's placement rule for immediate client placement feedback. */

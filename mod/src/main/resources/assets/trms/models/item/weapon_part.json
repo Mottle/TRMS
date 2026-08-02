@@ -1,17 +1,17 @@
 {
   "gui_light": "front",
   "textures": {
-    "particle": "minecraft:block/iron_block"
+    "particle": "trms:block/solid_metal"
   },
   "display": {
     "thirdperson_righthand": {
       "rotation": [65, 0, 0],
-      "translation": [0, 3, 1],
+      "translation": [0, 4, 2],
       "scale": [0.75, 0.75, 0.75]
     },
     "thirdperson_lefthand": {
       "rotation": [65, 0, 0],
-      "translation": [0, 3, 1],
+      "translation": [0, 4, 2],
       "scale": [0.75, 0.75, 0.75]
     },
     "firstperson_righthand": {

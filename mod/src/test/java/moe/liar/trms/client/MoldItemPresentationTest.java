@@ -92,6 +92,25 @@ class MoldItemPresentationTest {
     }
 
     @Test
+    void thirdPersonWeaponPartKeepsItsLocalGeometryIndependentOfPlayerRelativeDisplayTranslation() {
+        MoldPattern pattern = carve(4, 6);
+        PoseStack poseStack = new PoseStack();
+        poseStack.translate(-0.5F, -0.5F, -0.5F);
+        MoldMeshBuilder.centerThirdPersonWeaponPartGeometry(poseStack, pattern);
+
+        Vector3f minimum = poseStack.last().pose().transformPosition(4.0F / 16.0F, 0.0F,
+                6.0F / 16.0F, new Vector3f());
+        Vector3f maximum = poseStack.last().pose().transformPosition(5.0F / 16.0F, 1.0F / 16.0F,
+                7.0F / 16.0F, new Vector3f());
+
+        assertEquals(-11.0F / 32.0F, minimum.y());
+        assertEquals(-9.0F / 32.0F, maximum.y());
+        assertEquals(-5.0F / 16.0F, (minimum.y() + maximum.y()) / 2.0F);
+        assertEquals(-1.0F / 32.0F, minimum.z());
+        assertEquals(1.0F / 32.0F, maximum.z());
+    }
+
+    @Test
     void firstPersonWeaponPartMapsTheMoldSurfaceToTheNativeItemPlane() {
         MoldPattern pattern = carve(4, 6);
         PoseStack poseStack = new PoseStack();

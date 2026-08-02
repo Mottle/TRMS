@@ -12,6 +12,7 @@ public final class MoldBlockEntityRenderState extends BlockEntityRenderState {
     public @Nullable MoldFillMaterial fillMaterial;
     public int coolingTicks;
     public MoldMeshBuilder.WorldLighting worldLighting;
+    public MoldMeshBuilder.WorldLighting fillWorldLighting;
     public Direction facing = Direction.NORTH;
     public boolean showCarvingGuide;
     MoldCarvingGuide.Layout carvingGuide = MoldCarvingGuide.Layout.EMPTY;

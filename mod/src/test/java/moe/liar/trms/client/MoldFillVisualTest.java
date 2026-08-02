@@ -15,11 +15,23 @@ import org.junit.jupiter.api.Test;
 
 class MoldFillVisualTest {
     @Test
-    void mapsCopperAndIronToStableWarmAndSilverTints() {
+    void mapsCopperIronAndGoldToStableSolidMaterialTints() {
         assertEquals(MoldFillVisual.COPPER_COLOR,
                 MoldFillVisual.forMaterial(MoldFillMaterial.COPPER).baseColor());
         assertEquals(MoldFillVisual.IRON_COLOR,
                 MoldFillVisual.forMaterial(MoldFillMaterial.IRON).baseColor());
+        assertEquals(MoldFillVisual.GOLD_COLOR,
+                MoldFillVisual.forMaterial(MoldFillMaterial.GOLD).baseColor());
+    }
+
+    @Test
+    void goldUsesABrighterTintOnlyWhileItRemainsMolten() {
+        MoldFillVisual gold = MoldFillVisual.forMaterial(MoldFillMaterial.GOLD);
+
+        assertEquals(MoldFillVisual.GOLD_COLOR, gold.baseColor());
+        assertEquals(MoldFillVisual.MOLTEN_GOLD_COLOR, gold.colorForCoolingTicks(0));
+        assertEquals(MoldFillVisual.MOLTEN_GOLD_COLOR, gold.colorForCoolingTicks(280));
+        assertTrue(gold.colorForCoolingTicks(300) != MoldFillVisual.MOLTEN_GOLD_COLOR);
     }
 
     @Test
@@ -33,7 +45,7 @@ class MoldFillVisualTest {
         assertNull(MoldFillVisual.forMaterial(null));
         assertEquals("trms:block/molten_still", MoldMeshBuilder.MOLTEN_STILL_SPRITE.texture().toString());
         assertEquals("trms:block/molten_flow", MoldMeshBuilder.MOLTEN_FLOW_SPRITE.texture().toString());
-        assertEquals("minecraft:block/iron_block", MoldMeshBuilder.SOLID_METAL_SPRITE.texture().toString());
+        assertEquals("trms:block/solid_metal", MoldMeshBuilder.SOLID_METAL_SPRITE.texture().toString());
     }
 
     @Test
@@ -50,9 +62,34 @@ class MoldFillVisualTest {
     }
 
     @Test
+    void worldAmbientOcclusionMultipliesTheMoltenMaterialTint() {
+        assertEquals(0xFF603621,
+                MoldMeshBuilder.applyWorldLightingTint(0xFF808080, MoldFillVisual.COPPER_COLOR));
+        assertEquals(MoldFillVisual.COPPER_COLOR,
+                MoldMeshBuilder.applyWorldLightingTint(0xFFFFFFFF, MoldFillVisual.COPPER_COLOR));
+    }
+
+    @Test
     void moltenAnimationBasesRemainGreyscaleSoMaterialTintsCanChangeTheirHue() throws IOException {
         assertGreyscale("/assets/trms/textures/block/molten_still.png");
         assertGreyscale("/assets/trms/textures/block/molten_flow.png");
+    }
+
+    @Test
+    void cooledWeaponPartTextureIsOpaqueWhiteSoSideFacesRemainPurelyTinted() throws IOException {
+        try (InputStream stream = getClass().getResourceAsStream("/assets/trms/textures/block/solid_metal.png")) {
+            assertNotNull(stream, "missing pure metal base texture");
+            BufferedImage image = ImageIO.read(stream);
+            assertNotNull(image, "invalid pure metal base texture");
+            assertEquals(16, image.getWidth());
+            assertEquals(16, image.getHeight());
+            for (int y = 0; y < image.getHeight(); y++) {
+                for (int x = 0; x < image.getWidth(); x++) {
+                    assertEquals(0xFFFFFFFF, image.getRGB(x, y),
+                            "non-white metal texture pixel at (" + x + "," + y + ")");
+                }
+            }
+        }
     }
 
     private void assertGreyscale(String resourcePath) throws IOException {

@@ -28,6 +28,14 @@ final class MoldRenderCache {
     private MoldMeshBuilder.WorldLighting worldLighting;
     private boolean hasWorldLighting;
 
+    private MoldPattern fillLightingPattern = MoldPattern.EMPTY;
+    private long fillLightingRevision = Long.MIN_VALUE;
+    private int fillLightingCoords = Integer.MIN_VALUE;
+    private WeakReference<TextureAtlasSprite> fillLightingSprite = new WeakReference<>(null);
+    private Direction fillLightingFacing;
+    private MoldMeshBuilder.WorldLighting fillWorldLighting;
+    private boolean hasFillWorldLighting;
+
     /**
      * Returns the immutable legal-carve layout for the current authoritative
      * mold state. Callers should invoke this only when the guide will be shown.
@@ -73,6 +81,36 @@ final class MoldRenderCache {
         return worldLighting;
     }
 
+    /**
+     * Returns cached per-vertex lighting for the visual molten fill. This is
+     * separate from the ceramic cache because the cavity surface has a
+     * different topology, but it uses the same invalidation inputs.
+     */
+    synchronized MoldMeshBuilder.WorldLighting fillWorldLighting(
+            MoldPattern pattern,
+            long revision,
+            int lightCoords,
+            TextureAtlasSprite sprite,
+            Direction facing,
+            Supplier<MoldMeshBuilder.WorldLighting> capture
+    ) {
+        if (!hasFillWorldLighting
+                || !pattern.equals(fillLightingPattern)
+                || revision != fillLightingRevision
+                || lightCoords != fillLightingCoords
+                || fillLightingSprite.get() != sprite
+                || fillLightingFacing != facing) {
+            fillLightingPattern = pattern;
+            fillLightingRevision = revision;
+            fillLightingCoords = lightCoords;
+            fillLightingSprite = new WeakReference<>(sprite);
+            fillLightingFacing = facing;
+            fillWorldLighting = capture.get();
+            hasFillWorldLighting = true;
+        }
+        return fillWorldLighting;
+    }
+
     /** Drops cached arrays promptly when the client receives new mold state. */
     synchronized void invalidate() {
         carvingGuidePattern = MoldPattern.EMPTY;
@@ -85,5 +123,12 @@ final class MoldRenderCache {
         lightingFacing = null;
         worldLighting = null;
         hasWorldLighting = false;
+        fillLightingPattern = MoldPattern.EMPTY;
+        fillLightingRevision = Long.MIN_VALUE;
+        fillLightingCoords = Integer.MIN_VALUE;
+        fillLightingSprite = new WeakReference<>(null);
+        fillLightingFacing = null;
+        fillWorldLighting = null;
+        hasFillWorldLighting = false;
     }
 }

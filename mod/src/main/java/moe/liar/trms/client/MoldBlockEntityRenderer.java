@@ -72,6 +72,25 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
                             facing
                     )
             );
+            if (state.fillMaterial != null && pattern.carvedCount() > 0) {
+                net.minecraft.client.renderer.texture.TextureAtlasSprite fillSprite =
+                        sprites.get(MoldMeshBuilder.MOLTEN_STILL_SPRITE);
+                state.fillWorldLighting = blockEntity.renderCache().fillWorldLighting(
+                        pattern,
+                        state.revision,
+                        state.lightCoords,
+                        fillSprite,
+                        facing,
+                        () -> MoldMeshBuilder.captureFillWorldLighting(
+                                level,
+                                blockEntity.getBlockPos(),
+                                blockEntity.getBlockState(),
+                                pattern,
+                                fillSprite,
+                                facing
+                        )
+                );
+            }
         }
     }
 
@@ -95,7 +114,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
                     sprites.get(MoldMeshBuilder.MOLTEN_STILL_SPRITE),
                     sprites.get(MoldMeshBuilder.MOLTEN_FLOW_SPRITE)
             );
-            fillMesh.submitTintedWorld(poseStack, collector, state.lightCoords,
+            fillMesh.submitTintedWorld(poseStack, collector, state.lightCoords, state.fillWorldLighting,
                     fillVisual.colorForCoolingTicks(state.coolingTicks));
         }
         if (state.showCarvingGuide) {

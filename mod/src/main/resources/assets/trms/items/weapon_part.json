@@ -32,6 +32,16 @@
             "type": "trms:weapon_part_first_person_special"
           }
         }
+      },
+      {
+        "when": ["thirdperson_lefthand", "thirdperson_righthand"],
+        "model": {
+          "type": "minecraft:special",
+          "base": "trms:item/weapon_part",
+          "model": {
+            "type": "trms:weapon_part_third_person_special"
+          }
+        }
       }
     ],
     "fallback": {

@@ -45,12 +45,16 @@ class MoldRenderCacheTest {
     }
 
     @Test
-    void explicitInvalidationReleasesBothDerivedValues() {
+    void explicitInvalidationReleasesEveryDerivedValueIncludingMoltenFillLighting() {
         MoldRenderCache cache = new MoldRenderCache();
         MoldCarvingGuide.Layout first = cache.carvingGuide(MoldPattern.EMPTY, 0L);
         AtomicInteger captures = new AtomicInteger();
 
         cache.worldLighting(MoldPattern.EMPTY, 0L, 42, null, Direction.SOUTH, () -> {
+            captures.incrementAndGet();
+            return null;
+        });
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 42, null, Direction.SOUTH, () -> {
             captures.incrementAndGet();
             return null;
         });
@@ -61,6 +65,30 @@ class MoldRenderCacheTest {
             captures.incrementAndGet();
             return null;
         });
-        assertEquals(2, captures.get());
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 42, null, Direction.SOUTH, () -> {
+            captures.incrementAndGet();
+            return null;
+        });
+        assertEquals(4, captures.get(),
+                "a neighbour-shape invalidation must refresh both ceramic and molten fill lighting");
+    }
+
+    @Test
+    void fillLightingUsesTheSameBoundedInvalidationRulesAsCeramicLighting() {
+        MoldRenderCache cache = new MoldRenderCache();
+        AtomicInteger captures = new AtomicInteger();
+        Supplier<MoldMeshBuilder.WorldLighting> capture = () -> {
+            captures.incrementAndGet();
+            return null;
+        };
+
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 42, null, Direction.SOUTH, capture);
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 42, null, Direction.SOUTH, capture);
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 43, null, Direction.SOUTH, capture);
+        cache.fillWorldLighting(MoldPattern.EMPTY, 0L, 43, null, Direction.WEST, capture);
+        cache.fillWorldLighting(MoldPattern.EMPTY, 1L, 43, null, Direction.WEST, capture);
+
+        assertEquals(4, captures.get(),
+                "fill lighting must only be recaptured when its render inputs change");
     }
 }
