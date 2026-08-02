@@ -17,6 +17,7 @@ public record MoldFillMaterial(String id) {
 
     public static final MoldFillMaterial COPPER = new MoldFillMaterial(TrmsProtocol.NAMESPACE + ":copper");
     public static final MoldFillMaterial IRON = new MoldFillMaterial(TrmsProtocol.NAMESPACE + ":iron");
+    public static final MoldFillMaterial GOLD = new MoldFillMaterial(TrmsProtocol.NAMESPACE + ":gold");
 
     public MoldFillMaterial {
         Objects.requireNonNull(id, "id");

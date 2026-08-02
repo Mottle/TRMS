@@ -9,11 +9,13 @@ import org.junit.jupiter.api.Test;
 /** Unit tests for stable, side-neutral mold fill identities. */
 class MoldFillMaterialTest {
     @Test
-    void exposesStableInitialMaterialIds() {
+    void exposesStableBuiltInMaterialIds() {
         assertEquals("trms:copper", MoldFillMaterial.COPPER.id());
         assertEquals("trms:iron", MoldFillMaterial.IRON.id());
+        assertEquals("trms:gold", MoldFillMaterial.GOLD.id());
         assertEquals("trms", MoldFillMaterial.COPPER.namespace());
         assertEquals("copper", MoldFillMaterial.COPPER.path());
+        assertEquals("gold", MoldFillMaterial.GOLD.path());
         assertEquals("trms:copper", MoldFillMaterial.COPPER.toString());
     }
 
