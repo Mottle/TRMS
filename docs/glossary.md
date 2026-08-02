@@ -46,9 +46,9 @@ content or MoldPattern data.
 
 The material state of a placed Mold: unfilled or filled with exactly one registered molten material. Filling locks carving while the material cools; breaking the block clears the fill while preserving the carved pattern in the dropped Mold item.
 
-**Cooling stage**
+**Elapsed cooling ticks**
 
-One of ten persisted visible stages (`0..9`) of a filled Mold. The Extension advances it every 20 loaded ticks and completes the casting on the tenth update (200 ticks total). Its block state controls emitted light, and the client uses it to darken molten color and reduce cosmetic effects.
+The persisted authoritative cold-time value of a filled Mold: `0..580` in increments of 20 loaded ticks. The thirtieth update completes casting at 600 ticks. It is not a seconds or visual-stage counter; the block state derives compact visual stages from it, retaining full brightness and effects through tick 280 and starting attenuation at tick 300.
 
 **Fill material**
 
