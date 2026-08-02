@@ -11,6 +11,8 @@ import java.util.regex.Pattern;
  * that ID without introducing Minecraft or NeoForge dependencies here.</p>
  */
 public record MoldFillMaterial(String id) {
+    /** Keeps malformed persistent or item-component material IDs bounded before they reach a network codec. */
+    public static final int MAX_ID_LENGTH = 256;
     private static final Pattern ID_PATTERN = Pattern.compile("[a-z0-9_.-]+:[a-z0-9/._-]+");
 
     public static final MoldFillMaterial COPPER = new MoldFillMaterial(TrmsProtocol.NAMESPACE + ":copper");
@@ -18,6 +20,9 @@ public record MoldFillMaterial(String id) {
 
     public MoldFillMaterial {
         Objects.requireNonNull(id, "id");
+        if (id.length() > MAX_ID_LENGTH) {
+            throw new IllegalArgumentException("TRMS mold fill material ID exceeds " + MAX_ID_LENGTH + " characters");
+        }
         if (!ID_PATTERN.matcher(id).matches()) {
             throw new IllegalArgumentException("Invalid namespaced mold fill material ID: " + id);
         }

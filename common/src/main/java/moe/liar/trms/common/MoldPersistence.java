@@ -11,6 +11,8 @@ public final class MoldPersistence {
     public static final String FORMAT_KEY = "MoldFormat";
     public static final String PATTERN_KEY = "Pattern";
     public static final String REVISION_KEY = "Revision";
+    /** Persisted visible cooling stage for a filled placed mold; zero is the newly poured stage. */
+    public static final String COOLING_STAGE_KEY = "CoolingStage";
     /**
      * Optional namespaced {@link MoldFillMaterial} ID for a placed mold.
      * Absence means that the mold is unfilled.

@@ -37,6 +37,8 @@ class MoldFillMaterialTest {
         assertThrows(IllegalArgumentException.class, () -> MoldFillMaterial.of("trms:"));
         assertThrows(IllegalArgumentException.class, () -> MoldFillMaterial.of("trms:copper ingot"));
         assertThrows(IllegalArgumentException.class, () -> MoldFillMaterial.of("trms:copper:hot"));
+        assertThrows(IllegalArgumentException.class,
+                () -> MoldFillMaterial.of("trms:" + "a".repeat(MoldFillMaterial.MAX_ID_LENGTH)));
     }
 
     @Test
