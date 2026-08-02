@@ -3,19 +3,21 @@ package moe.liar.trms.common;
 /**
  * Side-neutral cooling schedule and presentation curve for a molten Mold.
  *
- * <p>The Extension advances a filled Mold once every {@link #TICK_INTERVAL}
- * server ticks.  The ten visible stages therefore occupy exactly
- * {@link #TOTAL_TICKS} ticks before the casting is produced.  Client code may
- * use the same stage for colour and ambience without owning any gameplay
- * timing.</p>
+ * <p>The Extension records accumulated loaded-server ticks rather than a
+ * synthetic seconds counter. It advances that value by {@link #TICK_INTERVAL}
+ * per scheduled update and completes a casting at {@link #TOTAL_TICKS}. Client
+ * presentation derives its compact visual stage from the authoritative tick
+ * value, without owning any gameplay timing.</p>
  */
 public final class MoldCooling {
     /** One server-authoritative cooling update each second at the normal 20 TPS rate. */
     public static final int TICK_INTERVAL = 20;
-    /** Number of visible molten stages before a casting completes. */
-    public static final int STAGE_COUNT = 10;
-    /** Total loaded-server time from pouring to automatic casting completion. */
-    public static final int TOTAL_TICKS = TICK_INTERVAL * STAGE_COUNT;
+    /** Total loaded-server time from pouring to automatic casting completion: thirty seconds. */
+    public static final int TOTAL_TICKS = 30 * TICK_INTERVAL;
+    /** Cooling begins visually only after the first fifteen seconds remain fully molten. */
+    public static final int DIMMING_START_TICKS = 15 * TICK_INTERVAL;
+    /** Compact derived presentation stages used for light, colour, and ambience. */
+    public static final int VISUAL_STAGE_COUNT = 10;
     /** The light level of a newly poured mold. */
     public static final int INITIAL_LIGHT_LEVEL = 15;
     /** The final visible stage remains faintly emissive until the casting drops. */
@@ -26,41 +28,71 @@ public final class MoldCooling {
     private MoldCooling() {
     }
 
-    /** Returns whether a persisted or synchronized visible stage is in range. */
-    public static boolean isValidStage(int stage) {
-        return stage >= 0 && stage < STAGE_COUNT;
+    /** Returns whether a persisted elapsed-tick value is a valid scheduled cooling checkpoint. */
+    public static boolean isValidElapsedTicks(int elapsedTicks) {
+        return elapsedTicks >= 0
+                && elapsedTicks < TOTAL_TICKS
+                && elapsedTicks % TICK_INTERVAL == 0;
     }
 
-    /** Rejects an invalid visible stage with a stable diagnostic for both endpoints. */
-    public static int requireValidStage(int stage) {
-        if (!isValidStage(stage)) {
-            throw new IllegalArgumentException("TRMS cooling stage must be 0.." + (STAGE_COUNT - 1) + ": " + stage);
+    /** Rejects a non-checkpoint elapsed-tick value with a stable diagnostic for both endpoints. */
+    public static int requireValidElapsedTicks(int elapsedTicks) {
+        if (!isValidElapsedTicks(elapsedTicks)) {
+            throw new IllegalArgumentException("TRMS cooling elapsed ticks must be 0.."
+                    + (TOTAL_TICKS - TICK_INTERVAL) + " in increments of " + TICK_INTERVAL + ": " + elapsedTicks);
         }
-        return stage;
+        return elapsedTicks;
+    }
+
+    /** Maps elapsed cooling ticks to the client-visible dimming stage. */
+    public static int visualStage(int elapsedTicks) {
+        requireValidElapsedTicks(elapsedTicks);
+        if (elapsedTicks < DIMMING_START_TICKS) {
+            return 0;
+        }
+        int dimmingRange = TOTAL_TICKS - DIMMING_START_TICKS - TICK_INTERVAL;
+        return Math.min(VISUAL_STAGE_COUNT - 1,
+                1 + (elapsedTicks - DIMMING_START_TICKS) * (VISUAL_STAGE_COUNT - 2) / dimmingRange);
     }
 
     /** Maps a visible stage to the server block-light emission level. */
     public static int lightLevel(int stage) {
-        requireValidStage(stage);
-        return INITIAL_LIGHT_LEVEL - stage * (INITIAL_LIGHT_LEVEL - FINAL_LIGHT_LEVEL) / (STAGE_COUNT - 1);
+        if (stage < 0 || stage >= VISUAL_STAGE_COUNT) {
+            throw new IllegalArgumentException("TRMS visual cooling stage must be 0.."
+                    + (VISUAL_STAGE_COUNT - 1) + ": " + stage);
+        }
+        return INITIAL_LIGHT_LEVEL - stage * (INITIAL_LIGHT_LEVEL - FINAL_LIGHT_LEVEL) / (VISUAL_STAGE_COUNT - 1);
     }
 
     /** Maps a visible stage to a client-side multiplier for the molten material tint. */
     public static float brightness(int stage) {
-        requireValidStage(stage);
-        return 1.0F - stage * (1.0F - FINAL_BRIGHTNESS) / (STAGE_COUNT - 1);
-    }
-
-    /** Returns whether the next scheduled update completes the casting rather than exposing another stage. */
-    public static boolean completesOnNextUpdate(int stage) {
-        return requireValidStage(stage) == STAGE_COUNT - 1;
-    }
-
-    /** Advances one visible stage; callers must handle completion separately at the final stage. */
-    public static int advanceStage(int stage) {
-        if (completesOnNextUpdate(stage)) {
-            throw new IllegalStateException("The final TRMS cooling stage completes instead of advancing");
+        if (stage < 0 || stage >= VISUAL_STAGE_COUNT) {
+            throw new IllegalArgumentException("TRMS visual cooling stage must be 0.."
+                    + (VISUAL_STAGE_COUNT - 1) + ": " + stage);
         }
-        return stage + 1;
+        return 1.0F - stage * (1.0F - FINAL_BRIGHTNESS) / (VISUAL_STAGE_COUNT - 1);
+    }
+
+    /** Maps authoritative elapsed ticks directly to the current world light level. */
+    public static int lightLevelForElapsedTicks(int elapsedTicks) {
+        return lightLevel(visualStage(elapsedTicks));
+    }
+
+    /** Maps authoritative elapsed ticks directly to the current molten tint and ambience multiplier. */
+    public static float brightnessForElapsedTicks(int elapsedTicks) {
+        return brightness(visualStage(elapsedTicks));
+    }
+
+    /** Returns whether the next twenty-tick update completes the casting rather than exposing another checkpoint. */
+    public static boolean completesOnNextUpdate(int elapsedTicks) {
+        return requireValidElapsedTicks(elapsedTicks) + TICK_INTERVAL >= TOTAL_TICKS;
+    }
+
+    /** Advances one persisted twenty-tick checkpoint; callers handle completion at the final update. */
+    public static int advanceElapsedTicks(int elapsedTicks) {
+        if (completesOnNextUpdate(elapsedTicks)) {
+            throw new IllegalStateException("The final TRMS cooling update completes instead of advancing elapsed ticks");
+        }
+        return elapsedTicks + TICK_INTERVAL;
     }
 }
