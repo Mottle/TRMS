@@ -60,16 +60,17 @@ support, but a pickaxe interaction on every other base is rejected before a
 cell is changed or durability is consumed.
 
 The block entity persists `MoldFormat`, `Pattern`, `Revision`, optional
-placed-only `FillMaterial` ID, and `CoolingStage`; it emits a standard
-block-entity update packet after every accepted carving, filling, or cooling
-stage. A non-empty, unfilled mold accepts one
+placed-only `FillMaterial` ID, and accumulated `CoolingTicks`; it emits a
+standard block-entity update packet after every accepted carving, filling, or
+20-tick cooling update. A non-empty, unfilled mold accepts one
 right-click with a copper or iron ingot without requiring a lodestone. Survival
 and adventure consume one ingot, while creative does not. Filling is one-way:
 it blocks further carving and refilling, starts at light level 15, and never
-creates a real fluid. The Extension advances cooling every 20 loaded ticks;
-after 200 ticks it drops exactly one `trms:weapon_part` carrying the original
-pattern and material, then clears the fill while retaining the reusable mold
-pattern. Light descends to 1 over the ten visible stages. Breaking a mold
+creates a real fluid. The Extension advances and records cooling by 20 loaded
+ticks at a time; after 600 ticks it drops exactly one `trms:weapon_part`
+carrying the original pattern and material, then clears the fill while
+retaining the reusable mold pattern. Light remains at 15 for the first 300
+ticks and then descends to 1 over derived visual stages. Breaking a mold
 before completion writes only its pattern to the dropped mold item and never
 creates a part. Invalid persisted data is rejected explicitly rather than
 silently resetting a player's mold.

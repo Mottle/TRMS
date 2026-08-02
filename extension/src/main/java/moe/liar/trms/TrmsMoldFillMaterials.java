@@ -46,8 +46,8 @@ final class TrmsMoldFillMaterials {
         return DEFINITIONS.stream().filter(definition -> definition.ingredient() == item).findFirst();
     }
 
-    static int lightLevel(boolean filled, int coolingStage) {
-        return filled ? MoldCooling.lightLevel(coolingStage) : 0;
+    static int lightLevel(boolean filled, int visualCoolingStage) {
+        return filled ? MoldCooling.lightLevel(visualCoolingStage) : 0;
     }
 
     /** One authoritative server gameplay binding; additional materials append another definition. */

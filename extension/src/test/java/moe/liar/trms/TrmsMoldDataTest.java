@@ -48,7 +48,7 @@ class TrmsMoldDataTest {
         assertEquals(pattern, loaded.pattern());
         assertEquals(3L, loaded.revision());
         assertTrue(loaded.fillMaterial().isEmpty());
-        assertEquals(0, loaded.coolingStage());
+        assertEquals(0, loaded.coolingTicks());
 
         DataComponentMap.Builder droppedComponents = DataComponentMap.builder();
         TrmsMoldData.storeItemPattern(droppedComponents, testPatternComponent, loaded.pattern());
@@ -72,9 +72,14 @@ class TrmsMoldDataTest {
     }
 
     @Test
-    void persistenceRejectsMissingPatternUnsupportedFormatAndNegativeRevision() {
+    void persistenceRejectsMissingOrObsoleteEnvelopeFieldsAndNegativeRevision() {
         CompoundTag valid = saveEnvelope(
                 TrmsMoldPattern.empty().carve(3, 3), 1L, Optional.empty());
+
+        CompoundTag missingFormat = valid.copy();
+        missingFormat.remove(MoldPersistence.FORMAT_KEY);
+        assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, missingFormat)));
 
         CompoundTag missingPattern = valid.copy();
         missingPattern.remove(MoldPersistence.PATTERN_KEY);
@@ -95,15 +100,16 @@ class TrmsMoldDataTest {
     @Test
     void placedFillMaterialSurvivesPersistenceButIsNotAnItemComponent() {
         TrmsMoldPattern pattern = TrmsMoldPattern.empty().carve(6, 6).carve(7, 6);
-        CompoundTag envelope = saveEnvelope(pattern, 9L, Optional.of(MoldFillMaterial.COPPER), 4);
+        CompoundTag envelope = saveEnvelope(pattern, 9L, Optional.of(MoldFillMaterial.COPPER), 80);
 
         TrmsMoldData.State loaded = TrmsMoldData.load(TagValueInput.create(
                 ProblemReporter.DISCARDING, RegistryAccess.EMPTY, envelope));
 
         assertEquals(MoldFillMaterial.COPPER, loaded.fillMaterial().orElseThrow());
-        assertEquals(4, loaded.coolingStage());
+        assertEquals(80, loaded.coolingTicks());
         assertEquals(MoldFillMaterial.COPPER.id(),
                 envelope.getStringOr(MoldPersistence.FILL_MATERIAL_KEY, ""));
+        assertEquals(80, envelope.getIntOr(MoldPersistence.COOLING_TICKS_KEY, -1));
 
         DataComponentMap.Builder droppedComponents = DataComponentMap.builder();
         TrmsMoldData.storeItemPattern(droppedComponents, testPatternComponent, loaded.pattern());
@@ -128,19 +134,35 @@ class TrmsMoldDataTest {
     }
 
     @Test
-    void persistenceRejectsCoolingOutsideTheFilledVisibleStageRange() {
+    void persistenceRejectsCoolingTimesThatAreNotTwentyTickCheckpoints() {
         CompoundTag validFilled = saveEnvelope(
                 TrmsMoldPattern.empty().carve(4, 4), 2L, Optional.of(MoldFillMaterial.IRON), 0);
-        CompoundTag invalidFilledStage = validFilled.copy();
-        invalidFilledStage.putInt(MoldPersistence.COOLING_STAGE_KEY, MoldCooling.STAGE_COUNT);
+        CompoundTag invalidFilledTicks = validFilled.copy();
+        invalidFilledTicks.putInt(MoldPersistence.COOLING_TICKS_KEY, 10);
         assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
-                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, invalidFilledStage)));
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, invalidFilledTicks)));
 
-        CompoundTag invalidUnfilledStage = saveEnvelope(
-                TrmsMoldPattern.empty().carve(4, 4), 2L, Optional.empty(), 0);
-        invalidUnfilledStage.putInt(MoldPersistence.COOLING_STAGE_KEY, 1);
+        CompoundTag completedButStillFilled = validFilled.copy();
+        completedButStillFilled.putInt(MoldPersistence.COOLING_TICKS_KEY, MoldCooling.TOTAL_TICKS);
         assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
-                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, invalidUnfilledStage)));
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, completedButStillFilled)));
+
+        CompoundTag invalidUnfilledTicks = saveEnvelope(
+                TrmsMoldPattern.empty().carve(4, 4), 2L, Optional.empty(), 0);
+        invalidUnfilledTicks.putInt(MoldPersistence.COOLING_TICKS_KEY, MoldCooling.TICK_INTERVAL);
+        assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, invalidUnfilledTicks)));
+    }
+
+    @Test
+    void persistenceRejectsThePreCoolingTicksEnvelopeInsteadOfResettingItsProgress() {
+        CompoundTag previousEnvelope = saveEnvelope(
+                TrmsMoldPattern.empty().carve(4, 4), 2L, Optional.of(MoldFillMaterial.IRON), 0);
+        previousEnvelope.remove(MoldPersistence.COOLING_TICKS_KEY);
+        previousEnvelope.putInt("CoolingStage", 9);
+
+        assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, previousEnvelope)));
     }
 
     @Test
@@ -155,7 +177,7 @@ class TrmsMoldDataTest {
                 Optional.of(MoldFillMaterial.COPPER), 0));
         assertThrows(IllegalArgumentException.class, () -> TrmsMoldData.save(
                 TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING), nonEmpty, 0L,
-                Optional.of(MoldFillMaterial.COPPER), MoldCooling.STAGE_COUNT));
+                Optional.of(MoldFillMaterial.COPPER), 10));
         assertThrows(IllegalArgumentException.class, () -> TrmsMoldData.save(
                 TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING), nonEmpty, 0L,
                 Optional.empty(), 1));
@@ -165,7 +187,7 @@ class TrmsMoldDataTest {
     void savingTheRealValueIoEnvelopeUsesTheProductionCodec() {
         TrmsMoldPattern pattern = TrmsMoldPattern.empty().carve(10, 10);
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        TrmsMoldData.save(output, pattern, 12L, Optional.of(MoldFillMaterial.IRON), 7);
+        TrmsMoldData.save(output, pattern, 12L, Optional.of(MoldFillMaterial.IRON), 140);
         CompoundTag tag = output.buildResult();
 
         TrmsMoldData.State decoded = TrmsMoldData.load(
@@ -173,7 +195,7 @@ class TrmsMoldDataTest {
         assertEquals(pattern, decoded.pattern());
         assertEquals(12L, decoded.revision());
         assertEquals(MoldFillMaterial.IRON, decoded.fillMaterial().orElseThrow());
-        assertEquals(7, decoded.coolingStage());
+        assertEquals(140, decoded.coolingTicks());
     }
 
     private static CompoundTag saveEnvelope(TrmsMoldPattern pattern, long revision,
@@ -182,9 +204,9 @@ class TrmsMoldDataTest {
     }
 
     private static CompoundTag saveEnvelope(TrmsMoldPattern pattern, long revision,
-                                            Optional<MoldFillMaterial> fillMaterial, int coolingStage) {
+                                            Optional<MoldFillMaterial> fillMaterial, int coolingTicks) {
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        TrmsMoldData.save(output, pattern, revision, fillMaterial, coolingStage);
+        TrmsMoldData.save(output, pattern, revision, fillMaterial, coolingTicks);
         return output.buildResult();
     }
 }

@@ -18,18 +18,20 @@ final class TrmsMoldData {
     }
 
     static void save(ValueOutput output, TrmsMoldPattern pattern, long revision,
-                     Optional<MoldFillMaterial> fillMaterial, int coolingStage) {
-        State state = new State(pattern, revision, fillMaterial, coolingStage);
+                     Optional<MoldFillMaterial> fillMaterial, int coolingTicks) {
+        State state = new State(pattern, revision, fillMaterial, coolingTicks);
         output.putInt(MoldPersistence.FORMAT_KEY, MoldPersistence.FORMAT_VERSION);
         output.store(MoldPersistence.PATTERN_KEY, TrmsMoldPattern.CODEC, state.pattern());
         output.putLong(MoldPersistence.REVISION_KEY, state.revision());
         state.fillMaterial()
                 .ifPresent(material -> output.putString(MoldPersistence.FILL_MATERIAL_KEY, material.id()));
-        output.putInt(MoldPersistence.COOLING_STAGE_KEY, state.coolingStage());
+        output.putInt(MoldPersistence.COOLING_TICKS_KEY, state.coolingTicks());
     }
 
     static State load(ValueInput input) {
-        int formatVersion = input.getIntOr(MoldPersistence.FORMAT_KEY, MoldPersistence.FORMAT_VERSION);
+        int formatVersion = input.getInt(MoldPersistence.FORMAT_KEY).orElseThrow(
+                () -> new IllegalStateException("Missing TRMS mold data format")
+        );
         if (formatVersion != MoldPersistence.FORMAT_VERSION) {
             throw new IllegalStateException("Unsupported TRMS mold data format: " + formatVersion);
         }
@@ -42,17 +44,21 @@ final class TrmsMoldData {
         }
         Optional<MoldFillMaterial> fillMaterial = input.getString(MoldPersistence.FILL_MATERIAL_KEY)
                 .map(MoldFillMaterial::of);
-        int coolingStage = input.getIntOr(MoldPersistence.COOLING_STAGE_KEY, 0);
+        Optional<Integer> savedCoolingTicks = input.getInt(MoldPersistence.COOLING_TICKS_KEY);
+        if (fillMaterial.isPresent() && savedCoolingTicks.isEmpty()) {
+            throw new IllegalStateException("A filled TRMS mold must contain CoolingTicks");
+        }
+        int coolingTicks = savedCoolingTicks.orElse(0);
         if (pattern.isEmpty() && fillMaterial.isPresent()) {
             throw new IllegalStateException("An empty TRMS mold cannot contain fill material");
         }
-        if (fillMaterial.isPresent() && !MoldCooling.isValidStage(coolingStage)) {
-            throw new IllegalStateException("Invalid TRMS mold cooling stage: " + coolingStage);
+        if (fillMaterial.isPresent() && !MoldCooling.isValidElapsedTicks(coolingTicks)) {
+            throw new IllegalStateException("Invalid TRMS mold cooling ticks: " + coolingTicks);
         }
-        if (fillMaterial.isEmpty() && coolingStage != 0) {
+        if (fillMaterial.isEmpty() && coolingTicks != 0) {
             throw new IllegalStateException("An unfilled TRMS mold cannot retain cooling progress");
         }
-        return new State(pattern, revision, fillMaterial, coolingStage);
+        return new State(pattern, revision, fillMaterial, coolingTicks);
     }
 
     static void storeItemPattern(ItemStack stack, DataComponentType<TrmsMoldPattern> component,
@@ -72,7 +78,7 @@ final class TrmsMoldData {
     }
 
     record State(TrmsMoldPattern pattern, long revision, Optional<MoldFillMaterial> fillMaterial,
-                 int coolingStage) {
+                 int coolingTicks) {
         State {
             Objects.requireNonNull(pattern, "pattern");
             Objects.requireNonNull(fillMaterial, "fillMaterial");
@@ -83,8 +89,8 @@ final class TrmsMoldData {
                 throw new IllegalArgumentException("An empty TRMS mold cannot contain fill material");
             }
             if (fillMaterial.isPresent()) {
-                MoldCooling.requireValidStage(coolingStage);
-            } else if (coolingStage != 0) {
+                MoldCooling.requireValidElapsedTicks(coolingTicks);
+            } else if (coolingTicks != 0) {
                 throw new IllegalArgumentException("An unfilled TRMS mold cannot retain cooling progress");
             }
         }

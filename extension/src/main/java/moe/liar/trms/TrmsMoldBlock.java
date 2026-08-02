@@ -51,7 +51,7 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
     static final BooleanProperty FILLED = BooleanProperty.create("filled");
     /** Derived cooling stage keeps the state-dependent world light in sync with the authoritative BE. */
     static final IntegerProperty COOLING_STAGE = IntegerProperty.create(
-            "cooling_stage", 0, MoldCooling.STAGE_COUNT - 1);
+            "cooling_stage", 0, MoldCooling.VISUAL_STAGE_COUNT - 1);
 
     private final Supplier<BlockEntityType<TrmsMoldBlockEntity>> typeSupplier;
 
@@ -135,7 +135,7 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
 
     @Override
     protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
-        if (!state.is(TrmsContent.MOLD.block()) || !state.getValue(FILLED)) {
+        if (!state.is(TrmsContent.MOLD.block())) {
             return;
         }
         if (level.getBlockEntity(pos) instanceof TrmsMoldBlockEntity mold && mold.advanceCooling()) {
