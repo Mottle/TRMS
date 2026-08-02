@@ -25,7 +25,9 @@ class TrmsMoldFillMaterialsTest {
         assertEquals(MoldFillMaterial.IRON,
                 TrmsMoldFillMaterials.forIngredient(Items.IRON_INGOT)
                         .orElseThrow().material());
-        assertTrue(TrmsMoldFillMaterials.forIngredient(Items.GOLD_INGOT).isEmpty());
+        assertEquals(MoldFillMaterial.GOLD,
+                TrmsMoldFillMaterials.forIngredient(Items.GOLD_INGOT)
+                        .orElseThrow().material());
         assertTrue(TrmsMoldFillMaterials.forIngredient(Items.AIR).isEmpty());
     }
 

@@ -118,6 +118,19 @@ class TrmsMoldDataTest {
     }
 
     @Test
+    void goldFillUsesTheSameVersionOnePersistenceEnvelopeAsExistingMaterials() {
+        TrmsMoldPattern pattern = TrmsMoldPattern.empty().carve(6, 6);
+        CompoundTag envelope = saveEnvelope(pattern, 10L, Optional.of(MoldFillMaterial.GOLD), 160);
+
+        TrmsMoldData.State loaded = TrmsMoldData.load(TagValueInput.create(
+                ProblemReporter.DISCARDING, RegistryAccess.EMPTY, envelope));
+
+        assertEquals(MoldPersistence.FORMAT_VERSION, envelope.getIntOr(MoldPersistence.FORMAT_KEY, -1));
+        assertEquals(MoldFillMaterial.GOLD, loaded.fillMaterial().orElseThrow());
+        assertEquals(160, loaded.coolingTicks());
+    }
+
+    @Test
     void persistenceSupportsExtensibleMaterialIdsAndRejectsFilledEmptyMolds() {
         MoldFillMaterial customMaterial = MoldFillMaterial.of("example:bronze");
         CompoundTag customEnvelope = saveEnvelope(

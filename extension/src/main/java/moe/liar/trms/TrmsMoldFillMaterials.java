@@ -16,7 +16,8 @@ final class TrmsMoldFillMaterials {
 
     private static final List<Definition> DEFINITIONS = List.of(
             new Definition(MoldFillMaterial.COPPER, Items.COPPER_INGOT),
-            new Definition(MoldFillMaterial.IRON, Items.IRON_INGOT)
+            new Definition(MoldFillMaterial.IRON, Items.IRON_INGOT),
+            new Definition(MoldFillMaterial.GOLD, Items.GOLD_INGOT)
     );
 
     static {
