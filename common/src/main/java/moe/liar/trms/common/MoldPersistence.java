@@ -11,6 +11,11 @@ public final class MoldPersistence {
     public static final String FORMAT_KEY = "MoldFormat";
     public static final String PATTERN_KEY = "Pattern";
     public static final String REVISION_KEY = "Revision";
+    /**
+     * Optional namespaced {@link MoldFillMaterial} ID for a placed mold.
+     * Absence means that the mold is unfilled.
+     */
+    public static final String FILL_MATERIAL_KEY = "FillMaterial";
 
     private MoldPersistence() {
     }
