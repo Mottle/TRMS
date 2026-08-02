@@ -120,6 +120,11 @@ public final class MoldMeshBuilder {
             new org.joml.Vector3f(0.0625f, 0.0625f, 0.46875f),
             new org.joml.Vector3f(0.9375f, 0.9375f, 0.53125f)
     };
+    /** Fixed-display bounds after mapping the mold surface onto an item-frame plane. */
+    public static final org.joml.Vector3fc[] WEAPON_PART_FIXED_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.0625f, 0.46875f),
+            new org.joml.Vector3f(0.9375f, 0.9375f, 0.53125f)
+    };
     /**
      * Conservative GUI bounds after a compact casting is uniformly scaled to
      * the 14-pixel interior presentation area. Uniform scaling preserves each
@@ -339,6 +344,16 @@ public final class MoldMeshBuilder {
             poseStack.popPose();
         }
 
+        /** Submits a casting flat against an item frame's native fixed-display plane. */
+        public void submitTintedFixedWeaponPartItem(PoseStack poseStack, SubmitNodeCollector collector,
+                                                    int light, int overlay, MoldPattern pattern, int tint) {
+            poseStack.pushPose();
+            centerFixedWeaponPartGeometry(poseStack, pattern);
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
+            poseStack.popPose();
+        }
+
         /**
          * Submits raw block-model-space geometry for the {@code ground}
          * display context.  The context's {@code ItemTransform} supplies the
@@ -427,6 +442,18 @@ public final class MoldMeshBuilder {
         // visible from both sides.
         poseStack.translate(0.5F - presentation.centerX(), 0.5F + presentation.centerZ(), 0.46875F);
         poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+    }
+
+    /**
+     * Maps a casting to the vertical XY plane used by an item frame.
+     *
+     * <p>Its geometry intentionally matches the native first-person item
+     * plane, but it is selected independently so the fixed model transform can
+     * remain unrotated. Applying the former 55-degree fixed transform to the
+     * mold's horizontal XZ surface is what made every framed casting tilt.</p>
+     */
+    static void centerFixedWeaponPartGeometry(PoseStack poseStack, MoldPattern pattern) {
+        centerFirstPersonWeaponPartGeometry(poseStack, pattern);
     }
 
     /** Calculates the item presentation from a non-empty casting's occupied horizontal bounds. */

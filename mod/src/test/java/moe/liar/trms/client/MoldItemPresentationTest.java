@@ -132,6 +132,26 @@ class MoldItemPresentationTest {
                 "mold thickness must become positive native item depth");
     }
 
+    @Test
+    void fixedWeaponPartUsesTheSameFlatNativeItemPlaneAsAnItemFrame() {
+        MoldPattern pattern = carve(4, 6);
+        PoseStack poseStack = new PoseStack();
+        poseStack.translate(-0.5F, -0.5F, -0.5F);
+        MoldMeshBuilder.centerFixedWeaponPartGeometry(poseStack, pattern);
+
+        Vector3f lowerFront = poseStack.last().pose().transformPosition(4.0F / 16.0F, 0.0F,
+                6.0F / 16.0F, new Vector3f());
+        Vector3f upperBack = poseStack.last().pose().transformPosition(5.0F / 16.0F, 1.0F / 16.0F,
+                7.0F / 16.0F, new Vector3f());
+
+        assertEquals(-1.0F / 32.0F, lowerFront.x(), 0.000001F);
+        assertEquals(1.0F / 32.0F, lowerFront.y(), 0.000001F);
+        assertEquals(-1.0F / 32.0F, lowerFront.z(), 0.000001F);
+        assertEquals(1.0F / 32.0F, upperBack.x(), 0.000001F);
+        assertEquals(-1.0F / 32.0F, upperBack.y(), 0.000001F);
+        assertEquals(1.0F / 32.0F, upperBack.z(), 0.000001F);
+    }
+
     private static MoldPattern carve(int... coordinates) {
         MoldPattern result = MoldPattern.EMPTY;
         for (int index = 0; index < coordinates.length; index += 2) {

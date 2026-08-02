@@ -40,6 +40,8 @@ public final class WeaponPartSpecialModelRenderer implements SpecialModelRendere
                     part.pattern(), visual.baseColor());
             case THIRD_PERSON -> mesh.submitTintedThirdPersonWeaponPartItem(poseStack, collector, light, overlay,
                     part.pattern(), visual.baseColor());
+            case FIXED -> mesh.submitTintedFixedWeaponPartItem(poseStack, collector, light, overlay,
+                    part.pattern(), visual.baseColor());
             case STANDARD -> mesh.submitTintedWeaponPartItem(poseStack, collector, light, overlay,
                     part.pattern(), false, visual.baseColor());
             case GROUND -> mesh.submitTintedGroundItem(poseStack, collector, light, overlay, visual.baseColor());
@@ -52,6 +54,7 @@ public final class WeaponPartSpecialModelRenderer implements SpecialModelRendere
             case GUI -> MoldMeshBuilder.WEAPON_PART_GUI_EXTENTS;
             case FIRST_PERSON -> MoldMeshBuilder.WEAPON_PART_FIRST_PERSON_EXTENTS;
             case THIRD_PERSON -> MoldMeshBuilder.WEAPON_PART_THIRD_PERSON_EXTENTS;
+            case FIXED -> MoldMeshBuilder.WEAPON_PART_FIXED_EXTENTS;
             case STANDARD -> MoldMeshBuilder.WEAPON_PART_ITEM_EXTENTS;
             case GROUND -> MoldMeshBuilder.WEAPON_PART_GROUND_ITEM_EXTENTS;
         };
@@ -125,6 +128,21 @@ public final class WeaponPartSpecialModelRenderer implements SpecialModelRendere
         }
     }
 
+    /** Resource-facing renderer that keeps a casting flat against an item frame. */
+    public record FixedUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<FixedUnbaked> CODEC = MapCodec.unit(new FixedUnbaked());
+
+        @Override
+        public MapCodec<FixedUnbaked> type() {
+            return CODEC;
+        }
+
+        @Override
+        public WeaponPartSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new WeaponPartSpecialModelRenderer(Presentation.FIXED);
+        }
+    }
+
     /** Resource-facing renderer for dropped item entities' raw ground model coordinates. */
     public record GroundUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
         public static final MapCodec<GroundUnbaked> CODEC = MapCodec.unit(new GroundUnbaked());
@@ -144,6 +162,7 @@ public final class WeaponPartSpecialModelRenderer implements SpecialModelRendere
         GUI,
         FIRST_PERSON,
         THIRD_PERSON,
+        FIXED,
         STANDARD,
         GROUND
     }

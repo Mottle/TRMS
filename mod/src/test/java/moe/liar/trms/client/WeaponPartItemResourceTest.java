@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 class WeaponPartItemResourceTest {
     @Test
-    void itemDefinitionUsesSeparateRenderersForGuiHandheldAndGroundContexts() throws IOException {
+    void itemDefinitionUsesSeparateRenderersForGuiHandheldFrameAndGroundContexts() throws IOException {
         try (InputStream resource = getClass().getResourceAsStream("/assets/trms/items/weapon_part.json")) {
             assertNotNull(resource, "weapon-part item definition must be packaged for the client");
             JsonObject model = JsonParser.parseString(new String(resource.readAllBytes(), StandardCharsets.UTF_8))
@@ -27,11 +27,14 @@ class WeaponPartItemResourceTest {
                     .getAsJsonObject("model").getAsJsonObject("model");
             JsonObject thirdPersonRenderer = model.getAsJsonArray("cases").get(3).getAsJsonObject()
                     .getAsJsonObject("model").getAsJsonObject("model");
+            JsonObject fixedRenderer = model.getAsJsonArray("cases").get(4).getAsJsonObject()
+                    .getAsJsonObject("model").getAsJsonObject("model");
             JsonObject fallbackRenderer = model.getAsJsonObject("fallback").getAsJsonObject("model");
             assertEquals("trms:weapon_part_ground_special", groundRenderer.get("type").getAsString());
             assertEquals("trms:weapon_part_gui_special", guiRenderer.get("type").getAsString());
             assertEquals("trms:weapon_part_first_person_special", firstPersonRenderer.get("type").getAsString());
             assertEquals("trms:weapon_part_third_person_special", thirdPersonRenderer.get("type").getAsString());
+            assertEquals("trms:weapon_part_fixed_special", fixedRenderer.get("type").getAsString());
             assertEquals("trms:weapon_part_special", fallbackRenderer.get("type").getAsString());
         }
     }
@@ -69,6 +72,12 @@ class WeaponPartItemResourceTest {
             assertEquals(2, thirdPersonRightHand.getAsJsonArray("translation").get(2).getAsInt());
             assertEquals(thirdPersonRightHand, thirdPersonLeftHand,
                     "both third-person hands must use the same calibrated local placement");
+
+            JsonObject fixed = display.getAsJsonObject("fixed");
+            assertEquals(0, fixed.getAsJsonArray("rotation").get(0).getAsInt());
+            assertEquals(0, fixed.getAsJsonArray("rotation").get(1).getAsInt());
+            assertEquals(0, fixed.getAsJsonArray("rotation").get(2).getAsInt());
+            assertEquals(0.65F, fixed.getAsJsonArray("scale").get(0).getAsFloat());
         }
     }
 }

@@ -42,6 +42,16 @@
             "type": "trms:weapon_part_third_person_special"
           }
         }
+      },
+      {
+        "when": ["fixed"],
+        "model": {
+          "type": "minecraft:special",
+          "base": "trms:item/weapon_part",
+          "model": {
+            "type": "trms:weapon_part_fixed_special"
+          }
+        }
       }
     ],
     "fallback": {

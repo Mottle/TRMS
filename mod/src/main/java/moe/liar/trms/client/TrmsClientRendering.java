@@ -28,6 +28,8 @@ public final class TrmsClientRendering {
                 WeaponPartSpecialModelRenderer.FirstPersonUnbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "weapon_part_third_person_special"),
                 WeaponPartSpecialModelRenderer.ThirdPersonUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "weapon_part_fixed_special"),
+                WeaponPartSpecialModelRenderer.FixedUnbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "weapon_part_ground_special"),
                 WeaponPartSpecialModelRenderer.GroundUnbaked.CODEC);
     }
