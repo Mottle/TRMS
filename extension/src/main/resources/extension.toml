@@ -1,0 +1,9 @@
+schemaVersion = 1
+id = "trms"
+name = "TRMS"
+version = "${version}"
+entrypoint = "moe.liar.trms.TrmsExtension"
+dependencies = []
+requiredClient = true
+clientModId = "trms"
+contentNamespaces = ["trms"]
