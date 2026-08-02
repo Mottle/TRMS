@@ -8,6 +8,7 @@ documents here are their shared behavioral contract.
 ## Accepted decisions
 
 - [ADR-0001: ceramic single-layer mold carving](adr/0001-ceramic-single-layer-mold-carving.md)
+- [ADR-0002: visual molten mold fills](adr/0002-visual-molten-mold-fills.md)
 - [Mold pattern v1 test contract](contracts/mold-pattern-v1.properties)
 
 ## Shared vocabulary

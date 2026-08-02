@@ -24,6 +24,15 @@ visible hole walls from the received immutable pattern; it caches by
 pattern/revision rather than rebuilding every frame.  The physical collision
 shape remains the fixed `16 x 16 x 2` thin slab.
 
+When the server marks a non-empty mold filled, the renderer covers its carved
+cells with a contiguous, visual-only molten surface. It sits slightly below the
+ceramic rim, removes internal shared faces, uses project-owned greyscale copies
+of the vanilla lava animations, and applies a stable copper or silver-iron
+tint at full lava light. This is not a `FluidState`: it cannot flow, heat, or
+change collision. Filled molds also emit local-only, low-frequency lava sparks,
+smoke, pop sounds, and ambient lava audio from their actual rotated cavity
+cells; unsupported future material IDs use a conspicuous fallback tint.
+
 Each placed mold also has a horizontal `facing` state and faces the player who
 placed it. The client rotates the static model, dynamic mesh, lighting, carving
 guide, and hit-coordinate conversion together, while the stored pattern stays

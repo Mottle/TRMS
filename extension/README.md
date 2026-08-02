@@ -58,11 +58,15 @@ Carving is enabled only while the mold's direct support block is
 support, but a pickaxe interaction on every other base is rejected before a
 cell is changed or durability is consumed.
 
-The block entity persists `MoldFormat`, `Pattern`, and `Revision`; it emits a
-standard block-entity update packet after every accepted carving.  Breaking a
-mold writes the same pattern to the dropped mold item, and placement restores
-that component.  Invalid persisted pattern data is rejected explicitly rather
-than silently resetting a player's mold.
+The block entity persists `MoldFormat`, `Pattern`, `Revision`, and its optional
+placed-only `FillMaterial` ID; it emits a standard block-entity update packet
+after every accepted carving or filling. A non-empty, unfilled mold accepts one
+right-click with a copper or iron ingot without requiring a lodestone. Survival
+and adventure consume one ingot, while creative does not. Filling is one-way:
+it blocks further carving and refilling, emits light level 15, and never creates
+a real fluid. Breaking a mold writes only its pattern to the dropped item, so
+re-placement always clears the fill. Invalid persisted data is rejected
+explicitly rather than silently resetting a player's mold.
 
 During the configuration phase the Extension requires the paired client mod.
 It sends a nonce-bound `trms:protocol_challenge`, requires

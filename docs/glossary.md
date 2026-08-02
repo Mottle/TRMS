@@ -39,3 +39,17 @@ volumetric three-dimensional casting.
 The TRMS client/server compatibility revision. A client whose revision differs
 from the server's required revision is rejected before it can interpret TRMS
 content or MoldPattern data.
+
+## Casting demo
+
+**Fill state**
+
+The material state of a placed Mold: unfilled or filled with exactly one registered material. Filling is one-way for the lifetime of the placed block; breaking the block clears the fill while preserving the carved pattern in the dropped Mold item.
+
+**Fill material**
+
+A namespaced, extensible material identity such as `trms:copper` or `trms:iron`. A material provides its accepted input item, display name, tinted animated lava-like texture, and light emission behavior.
+
+**Demonstration fill**
+
+A visual-only occupation of every carved cell in the Mold's Cavity. It uses contiguous geometry with shared internal faces removed, does not create a Minecraft `FluidState`, and does not flow or alter collision.
