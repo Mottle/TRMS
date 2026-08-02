@@ -40,16 +40,24 @@ The TRMS client/server compatibility revision. A client whose revision differs
 from the server's required revision is rejected before it can interpret TRMS
 content or MoldPattern data.
 
-## Casting demo
+## Casting and cooling
 
 **Fill state**
 
-The material state of a placed Mold: unfilled or filled with exactly one registered material. Filling is one-way for the lifetime of the placed block; breaking the block clears the fill while preserving the carved pattern in the dropped Mold item.
+The material state of a placed Mold: unfilled or filled with exactly one registered molten material. Filling locks carving while the material cools; breaking the block clears the fill while preserving the carved pattern in the dropped Mold item.
+
+**Cooling stage**
+
+One of ten persisted visible stages (`0..9`) of a filled Mold. The Extension advances it every 20 loaded ticks and completes the casting on the tenth update (200 ticks total). Its block state controls emitted light, and the client uses it to darken molten color and reduce cosmetic effects.
 
 **Fill material**
 
 A namespaced, extensible material identity such as `trms:copper` or `trms:iron`. A material provides its accepted input item, display name, tinted animated lava-like texture, and light emission behavior.
 
-**Demonstration fill**
+**Molten fill**
 
 A visual-only occupation of every carved cell in the Mold's Cavity. It uses contiguous geometry with shared internal faces removed, does not create a Minecraft `FluidState`, and does not flow or alter collision.
+
+**Weapon part**
+
+One `trms:weapon_part` item emitted when a molten fill completes cooling. Its data component stores the source `MoldPattern` and `Fill material`; its client model is the same closed, one-pixel-thick player-authored silhouette. It is an assembly input, not yet a functional weapon.

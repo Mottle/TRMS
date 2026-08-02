@@ -1,12 +1,12 @@
 # ADR-0002: visual molten mold fills
 
-- Status: Accepted
+- Status: Superseded by ADR-0003
 - Date: 2026-08-02
 - Scope: TRMS Horizon Extension and TRMS NeoForge client Mod
 
 ## Context
 
-TRMS needs an extensible, immediately testable filling stage before it has
+TRMS initially needed an extensible, immediately testable filling stage before it had
 recipes, temperature, fluid simulation, cooling, or casting outputs. The
 existing protocol must remain v1 and must not gain a filling payload. A future
 reader could otherwise reasonably mistake the rendered material for a Minecraft
@@ -40,7 +40,9 @@ no `FluidState`, flow, collision, heat, or casting result.
 
 ## Consequences
 
-- This is a demo fill effect rather than real molten-metal gameplay.
+- This decision describes the original visual-only filling baseline. ADR-0003
+  adds the current scheduled cooling and weapon-part output while retaining
+  the no-`FluidState` boundary and v1 protocol.
 - New materials require paired Extension and Mod descriptions under the same ID.
 - The project is in active development, so the new placed-Mold data format does
   not need to read pre-fill world data.
