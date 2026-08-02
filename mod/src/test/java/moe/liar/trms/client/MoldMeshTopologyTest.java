@@ -2,6 +2,7 @@ package moe.liar.trms.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -34,6 +35,39 @@ class MoldMeshTopologyTest {
         assertEquals(199, quads.size());
         assertEquals(195, countTopFaces(quads));
         assertEquals(4, countVerticalFaces(quads));
+    }
+
+    @Test
+    void worldTopologyReplacesEveryVisibleCarvedBaseFloorWithADepthBiasedDynamicFloor() {
+        MoldPattern pattern = carve(4, 4);
+        List<MoldMeshTopology.Quad> worldQuads = MoldMeshTopology.buildWorld(pattern);
+        List<MoldMeshTopology.Quad> itemQuads = MoldMeshTopology.build(pattern, false);
+
+        assertEquals(200, worldQuads.size());
+        assertEquals(196, countTopFaces(worldQuads));
+        assertEquals(199, itemQuads.size(), "the ordinary interior topology has no world-only replacement floor");
+        assertTrue(worldQuads.stream().anyMatch(quad -> quad.ny() > 0.0F
+                && minY(quad) == MoldMeshTopology.CAVITY_FLOOR_Y
+                && maxY(quad) == MoldMeshTopology.CAVITY_FLOOR_Y
+                && minX(quad) == 4.0F && maxX(quad) == 5.0F
+                && minZ(quad) == 4.0F && maxZ(quad) == 5.0F));
+    }
+
+    @Test
+    void lightingProxiesLiftOnlyRecessedHorizontalSurfacesToTheRimPlane() {
+        MoldPattern pattern = carve(4, 4);
+        MoldMeshTopology.Quad floor = MoldMeshTopology.buildWorld(pattern).stream()
+                .filter(quad -> quad.ny() > 0.0F && minY(quad) == MoldMeshTopology.CAVITY_FLOOR_Y)
+                .findFirst().orElseThrow();
+        MoldMeshTopology.Quad fillTop = MoldMeshTopology.buildFill(pattern).stream()
+                .filter(quad -> quad.ny() > 0.0F).findFirst().orElseThrow();
+        MoldMeshTopology.Quad wall = MoldMeshTopology.buildWorld(pattern).stream()
+                .filter(quad -> quad.ny() == 0.0F).findFirst().orElseThrow();
+
+        assertTopHeight(MoldMeshBuilder.lightingProxy(floor), MoldMeshTopology.RIM_SURFACE_Y);
+        assertTopHeight(MoldMeshBuilder.lightingProxy(fillTop), MoldMeshTopology.RIM_SURFACE_Y);
+        assertSame(wall, MoldMeshBuilder.lightingProxy(wall),
+                "vertical cavity walls retain their physical directional shadowing");
     }
 
     @Test
@@ -285,6 +319,14 @@ class MoldMeshTopologyTest {
         return Math.min(Math.min(quad.y0(), quad.y1()), Math.min(quad.y2(), quad.y3()));
     }
 
+    private static float minX(MoldMeshTopology.Quad quad) {
+        return Math.min(Math.min(quad.x0(), quad.x1()), Math.min(quad.x2(), quad.x3()));
+    }
+
+    private static float maxX(MoldMeshTopology.Quad quad) {
+        return Math.max(Math.max(quad.x0(), quad.x1()), Math.max(quad.x2(), quad.x3()));
+    }
+
     private static float maxY(MoldMeshTopology.Quad quad) {
         return Math.max(Math.max(quad.y0(), quad.y1()), Math.max(quad.y2(), quad.y3()));
     }
@@ -295,5 +337,12 @@ class MoldMeshTopologyTest {
 
     private static float maxZ(MoldMeshTopology.Quad quad) {
         return Math.max(Math.max(quad.z0(), quad.z1()), Math.max(quad.z2(), quad.z3()));
+    }
+
+    private static void assertTopHeight(MoldMeshTopology.Quad quad, float expectedY) {
+        assertEquals(expectedY, quad.y0());
+        assertEquals(expectedY, quad.y1());
+        assertEquals(expectedY, quad.y2());
+        assertEquals(expectedY, quad.y3());
     }
 }

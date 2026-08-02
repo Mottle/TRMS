@@ -17,6 +17,13 @@ public final class MoldMeshTopology {
     static final float FILL_BASE_Y = 1.0F;
     /** A quarter model pixel of headroom makes a filled mold look intentionally not quite full. */
     static final float FILL_SURFACE_Y = 1.75F;
+    /** Top height shared by the fixed ceramic rim and the solid interior cells. */
+    static final float RIM_SURFACE_Y = 2.0F;
+    /**
+     * Sits just above the baked base floor so a carved empty cell can receive
+     * the same client-side lighting treatment as its dynamic neighbours.
+     */
+    static final float CAVITY_FLOOR_Y = 1.001F;
     /** Keeps translucent fill walls off the solid ceramic cavity walls. */
     static final float FILL_SIDE_INSET = 0.001F;
     /** A solid weapon part is one model pixel thick and has closed geometry on every display side. */
@@ -30,7 +37,23 @@ public final class MoldMeshTopology {
         if (completeShell) {
             addBottomAndRim(quads, pattern);
         }
-        addInterior(quads, pattern);
+        addInterior(quads, pattern, false);
+        return List.copyOf(quads);
+    }
+
+    /**
+     * Builds world-only dynamic interior geometry, including a depth-biased
+     * floor for every carved cell.
+     *
+     * <p>The block model owns the physical ceramic base at {@code y=1}. Its
+     * static face is evaluated inside this block's two-pixel collision shape,
+     * which makes the vanilla AO pipeline over-darken a visible carved floor.
+     * The dynamic floor is one thousandth of a model pixel above that face, so
+     * it replaces only its visible colour without coplanar depth fighting.</p>
+     */
+    static List<Quad> buildWorld(MoldPattern pattern) {
+        List<Quad> quads = new ArrayList<>();
+        addInterior(quads, pattern, true);
         return List.copyOf(quads);
     }
 
@@ -167,16 +190,20 @@ public final class MoldMeshTopology {
         }
     }
 
-    private static void addInterior(List<Quad> quads, MoldPattern pattern) {
+    private static void addInterior(List<Quad> quads, MoldPattern pattern, boolean includeCarvedFloors) {
         for (int z = 1; z <= MoldPattern.INNER_SIZE; z++) {
             for (int x = 1; x <= MoldPattern.INNER_SIZE; x++) {
-                if (!pattern.isCarved(x, z)) {
-                    top(quads, x, z, x + 1, z + 1, 2);
-                    if (pattern.isCarved(x - 1, z)) west(quads, x, z, 1, 1, 2);
-                    if (pattern.isCarved(x + 1, z)) east(quads, x + 1, z, 1, 1, 2);
-                    if (pattern.isCarved(x, z - 1)) north(quads, x, z, 1, 1, 2);
-                    if (pattern.isCarved(x, z + 1)) south(quads, x, z + 1, 1, 1, 2);
+                if (pattern.isCarved(x, z)) {
+                    if (includeCarvedFloors) {
+                        top(quads, x, z, x + 1, z + 1, CAVITY_FLOOR_Y);
+                    }
+                    continue;
                 }
+                top(quads, x, z, x + 1, z + 1, RIM_SURFACE_Y);
+                if (pattern.isCarved(x - 1, z)) west(quads, x, z, 1, FILL_BASE_Y, RIM_SURFACE_Y);
+                if (pattern.isCarved(x + 1, z)) east(quads, x + 1, z, 1, FILL_BASE_Y, RIM_SURFACE_Y);
+                if (pattern.isCarved(x, z - 1)) north(quads, x, z, 1, FILL_BASE_Y, RIM_SURFACE_Y);
+                if (pattern.isCarved(x, z + 1)) south(quads, x, z + 1, 1, FILL_BASE_Y, RIM_SURFACE_Y);
             }
         }
     }

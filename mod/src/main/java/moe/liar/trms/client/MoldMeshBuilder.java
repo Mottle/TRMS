@@ -159,7 +159,7 @@ public final class MoldMeshBuilder {
     }
 
     public static Mesh buildWorld(MoldPattern pattern, TextureAtlasSprite sprite) {
-        return build(pattern, sprite, false, RenderTypes.entitySolid(sprite.atlasLocation()));
+        return build(MoldMeshTopology.buildWorld(pattern), sprite, RenderTypes.entitySolid(sprite.atlasLocation()));
     }
 
     public static Mesh buildItem(MoldPattern pattern, TextureAtlasSprite sprite) {
@@ -523,7 +523,7 @@ public final class MoldMeshBuilder {
     public static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                      BlockState blockState, MoldPattern pattern,
                                                      TextureAtlasSprite sprite, Direction facing) {
-        return captureWorldLighting(level, position, blockState, MoldMeshTopology.build(pattern, false), sprite, facing);
+        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildWorld(pattern), sprite, facing);
     }
 
     /**
@@ -543,7 +543,7 @@ public final class MoldMeshBuilder {
                                                       TextureAtlasSprite sprite, Direction facing) {
         List<MoldMeshTopology.Quad> quads = new ArrayList<>(sourceQuads.size());
         for (MoldMeshTopology.Quad quad : sourceQuads) {
-            quads.add(MoldMeshTopology.rotateForPresentation(quad, facing));
+            quads.add(lightingProxy(MoldMeshTopology.rotateForPresentation(quad, facing)));
         }
         int[] colors = new int[quads.size() * 4];
         int[] lights = new int[quads.size() * 4];
@@ -570,6 +570,29 @@ public final class MoldMeshBuilder {
             }
         }
         return new WorldLighting(colors, lights);
+    }
+
+    /**
+     * Samples recessed horizontal surfaces from the rim-height light plane.
+     *
+     * <p>A mold uses one two-pixel-tall collision shape. Asking vanilla AO to
+     * light a visible top face at {@code y=1} or {@code y=1.75} therefore
+     * treats it as if it were hidden inside a full slab, even though the
+     * ceramic rim leaves it visible. Lifting only the lighting proxy preserves
+     * the rendered depth and real side-wall shading while matching the outer
+     * rim's top-surface light.</p>
+     */
+    static MoldMeshTopology.Quad lightingProxy(MoldMeshTopology.Quad quad) {
+        if (quad.ny() <= 0.0F || quad.y0() >= MoldMeshTopology.RIM_SURFACE_Y) {
+            return quad;
+        }
+        return new MoldMeshTopology.Quad(
+                quad.x0(), MoldMeshTopology.RIM_SURFACE_Y, quad.z0(),
+                quad.x1(), MoldMeshTopology.RIM_SURFACE_Y, quad.z1(),
+                quad.x2(), MoldMeshTopology.RIM_SURFACE_Y, quad.z2(),
+                quad.x3(), MoldMeshTopology.RIM_SURFACE_Y, quad.z3(),
+                quad.nx(), quad.ny(), quad.nz()
+        );
     }
 
     private static BakedQuad bakedQuad(MoldMeshTopology.Quad quad, BakedQuad.MaterialInfo material) {
