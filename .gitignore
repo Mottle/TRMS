@@ -1,0 +1,13 @@
+# Gradle build state and generated artifacts
+.gradle/
+build/
+**/build/
+
+# Local development-server and client runtime state
+extension/run/
+extension/run-assets/
+extension/logs/
+mod/runs/
+
+# Reference material intentionally kept outside this repository history
+horizon_docs/
