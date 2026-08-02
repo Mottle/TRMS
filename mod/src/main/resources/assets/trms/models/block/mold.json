@@ -1,0 +1,65 @@
+{
+  "credit": "TRMS",
+  "textures": {
+    "ceramic": "minecraft:block/terracotta",
+    "particle": "minecraft:block/terracotta"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 1, 16],
+      "faces": {
+        "down": {"texture": "#ceramic", "cullface": "down"},
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic", "cullface": "north"},
+        "south": {"texture": "#ceramic", "cullface": "south"},
+        "west": {"texture": "#ceramic", "cullface": "west"},
+        "east": {"texture": "#ceramic", "cullface": "east"}
+      }
+    },
+    {
+      "from": [0, 1, 0],
+      "to": [1, 2, 16],
+      "faces": {
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic"},
+        "south": {"texture": "#ceramic"},
+        "west": {"texture": "#ceramic", "cullface": "west"},
+        "east": {"texture": "#ceramic"}
+      }
+    },
+    {
+      "from": [15, 1, 0],
+      "to": [16, 2, 16],
+      "faces": {
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic"},
+        "south": {"texture": "#ceramic"},
+        "west": {"texture": "#ceramic"},
+        "east": {"texture": "#ceramic", "cullface": "east"}
+      }
+    },
+    {
+      "from": [1, 1, 0],
+      "to": [15, 2, 1],
+      "faces": {
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic", "cullface": "north"},
+        "south": {"texture": "#ceramic"},
+        "west": {"texture": "#ceramic"},
+        "east": {"texture": "#ceramic"}
+      }
+    },
+    {
+      "from": [1, 1, 15],
+      "to": [15, 2, 16],
+      "faces": {
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic"},
+        "south": {"texture": "#ceramic", "cullface": "south"},
+        "west": {"texture": "#ceramic"},
+        "east": {"texture": "#ceramic"}
+      }
+    }
+  ]
+}

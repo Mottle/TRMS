@@ -1,0 +1,30 @@
+{
+  "credit": "TRMS",
+  "gui_light": "front",
+  "ambientocclusion": false,
+  "textures": {
+    "ceramic": "minecraft:block/terracotta",
+    "particle": "minecraft:block/terracotta"
+  },
+  "elements": [
+    {
+      "from": [0, 0, 0],
+      "to": [16, 2, 16],
+      "faces": {
+        "down": {"texture": "#ceramic"},
+        "up": {"texture": "#ceramic"},
+        "north": {"texture": "#ceramic"},
+        "south": {"texture": "#ceramic"},
+        "west": {"texture": "#ceramic"},
+        "east": {"texture": "#ceramic"}
+      }
+    }
+  ],
+  "display": {
+    "gui": {
+      "rotation": [45, 45, 0],
+      "translation": [0, 0.5, 0],
+      "scale": [0.72, 0.72, 0.72]
+    }
+  }
+}
