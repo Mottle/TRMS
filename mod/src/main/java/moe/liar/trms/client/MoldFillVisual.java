@@ -1,6 +1,8 @@
 package moe.liar.trms.client;
 
 import moe.liar.trms.common.MoldFillMaterial;
+import moe.liar.trms.common.MoldCooling;
+import net.minecraft.util.ARGB;
 import org.jspecify.annotations.Nullable;
 
 /** Client-only presentation attributes for the visual mold-fill materials. */
@@ -34,7 +36,15 @@ final class MoldFillVisual {
         };
     }
 
-    int color() {
+    int colorForCoolingStage(int stage) {
+        float brightness = MoldCooling.brightness(stage);
+        return ARGB.color(ARGB.alpha(color),
+                Math.round(ARGB.red(color) * brightness),
+                Math.round(ARGB.green(color) * brightness),
+                Math.round(ARGB.blue(color) * brightness));
+    }
+
+    int baseColor() {
         return color;
     }
 }

@@ -4,19 +4,22 @@
     "property": "minecraft:display_context",
     "cases": [
       {
-        "when": ["gui"],
-        "model": {
-          "type": "minecraft:model",
-          "model": "trms:item/mold_gui"
-        }
-      },
-      {
         "when": ["ground"],
         "model": {
           "type": "minecraft:special",
-          "base": "trms:item/mold",
+          "base": "trms:item/weapon_part",
           "model": {
-            "type": "trms:mold_ground_special"
+            "type": "trms:weapon_part_ground_special"
+          }
+        }
+      },
+      {
+        "when": ["gui"],
+        "model": {
+          "type": "minecraft:special",
+          "base": "trms:item/weapon_part",
+          "model": {
+            "type": "trms:weapon_part_gui_special"
           }
         }
       },
@@ -24,18 +27,18 @@
         "when": ["firstperson_lefthand", "firstperson_righthand"],
         "model": {
           "type": "minecraft:special",
-          "base": "trms:item/mold",
+          "base": "trms:item/weapon_part",
           "model": {
-            "type": "trms:mold_first_person_special"
+            "type": "trms:weapon_part_first_person_special"
           }
         }
       }
     ],
     "fallback": {
       "type": "minecraft:special",
-      "base": "trms:item/mold",
+      "base": "trms:item/weapon_part",
       "model": {
-        "type": "trms:mold_special"
+        "type": "trms:weapon_part_special"
       }
     }
   }

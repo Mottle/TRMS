@@ -67,10 +67,14 @@ class MoldMeshTopologyTest {
     void fillSideWallsAreInsetFromTheSolidCeramicWalls() {
         List<MoldMeshTopology.Quad> quads = MoldMeshTopology.buildFill(carve(4, 4));
 
-        assertFalse(quads.stream()
-                .filter(quad -> quad.ny() == 0.0F)
-                .anyMatch(quad -> quad.x0() == 4.0F || quad.x0() == 5.0F
-                        || quad.z0() == 4.0F || quad.z0() == 5.0F));
+        assertTrue(quads.stream().filter(quad -> quad.nx() < 0.0F)
+                .allMatch(quad -> quad.x0() > 4.0F));
+        assertTrue(quads.stream().filter(quad -> quad.nx() > 0.0F)
+                .allMatch(quad -> quad.x0() < 5.0F));
+        assertTrue(quads.stream().filter(quad -> quad.nz() < 0.0F)
+                .allMatch(quad -> quad.z0() > 4.0F));
+        assertTrue(quads.stream().filter(quad -> quad.nz() > 0.0F)
+                .allMatch(quad -> quad.z0() < 5.0F));
     }
 
     @Test
@@ -81,6 +85,21 @@ class MoldMeshTopologyTest {
         assertEquals(2, countTopFaces(quads));
         assertEquals(6, countVerticalFaces(quads));
         assertFalse(quads.stream().anyMatch(quad -> quad.ny() == 0.0F
+                && quad.x0() == 5.0F && quad.x1() == 5.0F
+                && quad.x2() == 5.0F && quad.x3() == 5.0F
+                && minZ(quad) == 4.0F && maxZ(quad) == 5.0F));
+    }
+
+    @Test
+    void weaponPartTopologyIsClosedAndRetainsOnlyOuterSides() {
+        List<MoldMeshTopology.Quad> oneCell = MoldMeshTopology.buildWeaponPart(carve(4, 4));
+        List<MoldMeshTopology.Quad> twoCells = MoldMeshTopology.buildWeaponPart(carve(4, 4, 5, 4));
+
+        assertEquals(6, oneCell.size());
+        assertEquals(1, oneCell.stream().filter(quad -> quad.ny() == 1).count());
+        assertEquals(1, oneCell.stream().filter(quad -> quad.ny() == -1).count());
+        assertEquals(10, twoCells.size());
+        assertFalse(twoCells.stream().anyMatch(quad -> quad.nx() != 0.0F
                 && quad.x0() == 5.0F && quad.x1() == 5.0F
                 && quad.x2() == 5.0F && quad.x3() == 5.0F
                 && minZ(quad) == 4.0F && maxZ(quad) == 5.0F));

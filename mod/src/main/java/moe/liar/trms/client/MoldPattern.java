@@ -52,6 +52,11 @@ public final class MoldPattern {
         return value.toBytes();
     }
 
+    /** Returns the immutable shared value for another client-side data-component adapter. */
+    moe.liar.trms.common.MoldPattern commonPattern() {
+        return value;
+    }
+
     public boolean isCarved(int x, int z) {
         return value.isCarved(x, z);
     }

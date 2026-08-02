@@ -58,10 +58,22 @@ public final class MoldMeshBuilder {
             BLOCK_ATLAS_TEXTURE,
             Identifier.fromNamespaceAndPath("trms", "block/molten_flow")
     );
-    static final int FULL_BRIGHT_LIGHT = 0x00F000F0;
+    /** Neutral, non-animated solid-metal detail texture used by cooled weapon-part item geometry. */
+    public static final SpriteId SOLID_METAL_SPRITE = new SpriteId(
+            BLOCK_ATLAS_TEXTURE,
+            Identifier.withDefaultNamespace("block/iron_block")
+    );
+    /**
+     * Raw block-model bounds for the standard special-item presentation.
+     *
+     * <p>NeoForge's item transform supplies the one and only {@code -0.5}
+     * pivot translation. Keeping special-renderer geometry in ordinary
+     * {@code 0..1} model space avoids moving it a second half-model width
+     * away from the player's hand in third person.</p>
+     */
     public static final org.joml.Vector3fc[] ITEM_EXTENTS = {
-            new org.joml.Vector3f(-0.5f, -0.0625f, -0.5f),
-            new org.joml.Vector3f(0.5f, 0.0625f, 0.5f)
+            new org.joml.Vector3f(0.0f, 0.0f, 0.0f),
+            new org.joml.Vector3f(1.0f, 0.125f, 1.0f)
     };
     /**
      * Raw block-model-space bounds for the dropped-item renderer.
@@ -75,11 +87,48 @@ public final class MoldMeshBuilder {
             new org.joml.Vector3f(0.0f, 0.0f, 0.0f),
             new org.joml.Vector3f(1.0f, 0.125f, 1.0f)
     };
+    /**
+     * Normalized pre-item-transform extents of a centered, one-pixel-thick
+     * weapon part. Special item renderers receive a pose which already moves
+     * ordinary 0..1 model coordinates by {@code -0.5}; these extents must
+     * therefore remain in that ordinary model space rather than being centered
+     * a second time.
+     */
+    public static final org.joml.Vector3fc[] WEAPON_PART_ITEM_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.46875f, 0.0625f),
+            new org.joml.Vector3f(0.9375f, 0.53125f, 0.9375f)
+    };
+    /**
+     * Bounds after a casting's XZ silhouette is mapped into the ordinary XY
+     * item plane used by Minecraft's first-person handheld transforms.
+     */
+    public static final org.joml.Vector3fc[] WEAPON_PART_FIRST_PERSON_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.0625f, 0.46875f),
+            new org.joml.Vector3f(0.9375f, 0.9375f, 0.53125f)
+    };
+    /**
+     * Conservative GUI bounds after a compact casting is uniformly scaled to
+     * the 14-pixel interior presentation area. Uniform scaling preserves each
+     * source cell as a true cube rather than flattening it into a plate.
+     */
+    public static final org.joml.Vector3fc[] WEAPON_PART_GUI_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.0625f, 0.0625f),
+            new org.joml.Vector3f(0.9375f, 0.9375f, 0.9375f)
+    };
+    /** Raw ground-space extents for the same weapon part. */
+    public static final org.joml.Vector3fc[] WEAPON_PART_GROUND_ITEM_EXTENTS = {
+            new org.joml.Vector3f(0.0625f, 0.0f, 0.0625f),
+            new org.joml.Vector3f(0.9375f, 0.0625f, 0.9375f)
+    };
 
     private MoldMeshBuilder() {}
 
     public static TextureAtlasSprite currentTerracottaSprite() {
         return Minecraft.getInstance().getAtlasManager().get(TERRACOTTA_SPRITE);
+    }
+
+    public static TextureAtlasSprite currentSolidMetalSprite() {
+        return Minecraft.getInstance().getAtlasManager().get(SOLID_METAL_SPRITE);
     }
 
     /** Applies the directional presentation turn to block-local world geometry. */
@@ -103,6 +152,11 @@ public final class MoldMeshBuilder {
         return build(pattern, sprite, true, RenderTypes.entitySolid(sprite.atlasLocation()));
     }
 
+    /** Builds the standalone closed silhouette of a cooled casting for item rendering. */
+    public static Mesh buildWeaponPart(MoldPattern pattern, TextureAtlasSprite sprite) {
+        return build(MoldMeshTopology.buildWeaponPart(pattern), sprite, RenderTypes.entitySolid(sprite.atlasLocation()));
+    }
+
     /**
      * Small render-thread LRU cache shared by one renderer instance.
      *
@@ -120,6 +174,8 @@ public final class MoldMeshBuilder {
         private TextureAtlasSprite fillTopSprite;
         private TextureAtlasSprite fillSideSprite;
         private final Map<MoldPattern, Mesh> fillMeshes = boundedMeshMap();
+        private TextureAtlasSprite weaponPartSprite;
+        private final Map<MoldPattern, Mesh> weaponPartMeshes = boundedMeshMap();
 
         public Cache(boolean completeShell) {
             this.completeShell = completeShell;
@@ -157,6 +213,18 @@ public final class MoldMeshBuilder {
                     nextPattern -> buildFill(nextPattern, fillTopSprite, fillSideSprite));
         }
 
+        /** Returns closed, non-animated solid geometry for a weapon-part item. */
+        public Mesh getWeaponPart(MoldPattern pattern, TextureAtlasSprite nextSprite) {
+            Objects.requireNonNull(pattern, "pattern");
+            Objects.requireNonNull(nextSprite, "nextSprite");
+            if (nextSprite != weaponPartSprite) {
+                weaponPartSprite = nextSprite;
+                weaponPartMeshes.clear();
+            }
+            return weaponPartMeshes.computeIfAbsent(pattern,
+                    nextPattern -> buildWeaponPart(nextPattern, weaponPartSprite));
+        }
+
         private static Map<MoldPattern, Mesh> boundedMeshMap() {
             return new LinkedHashMap<>(MAXIMUM_MESHES, 0.75F, true) {
                 @Override
@@ -185,18 +253,61 @@ public final class MoldMeshBuilder {
                             1.0f / 16.0f, lighting, 0xFFFFFFFF));
         }
 
-        /** Submits a material fill with fixed level-15 block and sky light. */
-        public void submitFullBrightWorld(PoseStack poseStack, SubmitNodeCollector collector, int color) {
+        /** Submits tinted dynamic world geometry using the block entity's actual world light. */
+        public void submitTintedWorld(PoseStack poseStack, SubmitNodeCollector collector, int light, int color) {
             collector.submitCustomGeometry(poseStack, renderType,
-                    (pose, vertices) -> render(pose, vertices, FULL_BRIGHT_LIGHT, OverlayTexture.NO_OVERLAY,
+                    (pose, vertices) -> render(pose, vertices, light, OverlayTexture.NO_OVERLAY,
                             1.0f / 16.0f, null, color));
         }
 
         public void submitItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
-            poseStack.pushPose();
-            centerItemGeometry(poseStack);
+            submitTintedItem(poseStack, collector, light, overlay, 0xFFFFFFFF);
+        }
+
+        /**
+         * Submits the mold through the single item-model pivot supplied by
+         * NeoForge before special rendering. Applying a second local centering
+         * offset here pushes the thin mold away from the player's hand.
+         */
+        public void submitFirstPersonItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
+            submitItem(poseStack, collector, light, overlay);
+        }
+
+        /** Submits item geometry with a material tint while retaining ordinary item lighting. */
+        public void submitTintedItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay, int tint) {
             collector.submitCustomGeometry(poseStack, renderType,
-                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, 0xFFFFFFFF));
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
+        }
+
+        /**
+         * Submits a completed casting centered and proportionally scaled from
+         * its actual carved outline for GUI, hand, frame, and fallback item
+         * contexts.
+         */
+        public void submitTintedWeaponPartItem(PoseStack poseStack, SubmitNodeCollector collector, int light,
+                                               int overlay, MoldPattern pattern, boolean expandToGui, int tint) {
+            poseStack.pushPose();
+            centerWeaponPartItemGeometry(poseStack, pattern, expandToGui);
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
+            poseStack.popPose();
+        }
+
+        /**
+         * Submits a completed casting in Minecraft's native XY item plane.
+         *
+         * <p>Carving data is intentionally stored on an XZ mold surface. A
+         * vanilla first-person handheld transform, however, assumes the item
+         * silhouette lies on XY with Z as its thickness. Mapping only this
+         * presentation avoids compensating for that mismatch with arbitrary
+         * screen translations or an excessive pitch.</p>
+         */
+        public void submitTintedFirstPersonWeaponPartItem(PoseStack poseStack, SubmitNodeCollector collector,
+                                                          int light, int overlay, MoldPattern pattern, int tint) {
+            poseStack.pushPose();
+            centerFirstPersonWeaponPartGeometry(poseStack, pattern);
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
             poseStack.popPose();
         }
 
@@ -206,13 +317,19 @@ public final class MoldMeshBuilder {
          * one and only centering translation before an item entity rotates.
          */
         public void submitGroundItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
+            submitTintedGroundItem(poseStack, collector, light, overlay, 0xFFFFFFFF);
+        }
+
+        /** Submits raw ground item geometry with a material tint. */
+        public void submitTintedGroundItem(PoseStack poseStack, SubmitNodeCollector collector, int light,
+                                           int overlay, int tint) {
             poseStack.pushPose();
             // Ground special rendering deliberately uses raw 0..1 model space;
             // rotate around that raw model center so an ItemEntity retains its
             // already-correct spin center.
             rotateYAround(poseStack, 180.0F, 0.5F, 0.5F);
             collector.submitCustomGeometry(poseStack, renderType,
-                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, 0xFFFFFFFF));
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
             poseStack.popPose();
         }
 
@@ -230,12 +347,73 @@ public final class MoldMeshBuilder {
     }
 
     /**
-     * Centers custom 0..1 block-space geometry in a hand, frame, or fallback
-     * item transform without changing the placed mold's canonical x/z facing.
+     * Centers a completed casting on its carved outline, with optional GUI-only
+     * expansion on all three axes.
+     *
+     * <p>A mold's 14-by-14 interior is deliberately stored in its original
+     * coordinates so it can be rendered back in the block.  Those coordinates
+     * would leave a one-cell casting in a corner of an inventory icon, however.
+     * This item-only transform first recenters the occupied bounds. In the
+     * inventory GUI only, it then makes the longest horizontal side fill the
+     * same 14-pixel presentation area as a full mold. The same scale is applied
+     * to X, Y, and Z, so every source model pixel remains a true cube. The renderer receives an item pose which
+     * already translates ordinary block-model coordinates by {@code -0.5};
+     * restoring a {@code +0.5} pivot here is what places this dynamic geometry
+     * at the true visual center rather than a half-model width to one side.</p>
      */
-    static void centerItemGeometry(PoseStack poseStack) {
-        poseStack.translate(-0.5F, -0.0625F, -0.5F);
+    static void centerWeaponPartItemGeometry(PoseStack poseStack, MoldPattern pattern, boolean expandToGui) {
+        WeaponPartItemPresentation presentation = weaponPartItemPresentation(pattern, expandToGui);
+        poseStack.translate(0.5F, 0.5F, 0.5F);
+        poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
+        poseStack.translate(-presentation.centerX(), -0.03125F, -presentation.centerZ());
     }
+
+    /**
+     * Centers a casting while converting its horizontal XZ mold surface to
+     * the XY plane expected by a first-person generated/handheld item model.
+     */
+    static void centerFirstPersonWeaponPartGeometry(PoseStack poseStack, MoldPattern pattern) {
+        WeaponPartItemPresentation presentation = weaponPartItemPresentation(pattern, false);
+        // The caller has already applied the standard -0.5 item-model pivot.
+        // Map the mold's upward-facing surface to the generated item's
+        // positive-Z front face.  The opposite turn would show the casting's
+        // reverse and invert its outline despite the closed mesh still being
+        // visible from both sides.
+        poseStack.translate(0.5F - presentation.centerX(), 0.5F + presentation.centerZ(), 0.46875F);
+        poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+    }
+
+    /** Calculates the item presentation from a non-empty casting's occupied horizontal bounds. */
+    static WeaponPartItemPresentation weaponPartItemPresentation(MoldPattern pattern, boolean expandToGui) {
+        Objects.requireNonNull(pattern, "pattern");
+        int minimumX = MoldPattern.INNER_SIZE + 1;
+        int minimumZ = MoldPattern.INNER_SIZE + 1;
+        int maximumX = 0;
+        int maximumZ = 0;
+        for (int z = 1; z <= MoldPattern.INNER_SIZE; z++) {
+            for (int x = 1; x <= MoldPattern.INNER_SIZE; x++) {
+                if (!pattern.isCarved(x, z)) {
+                    continue;
+                }
+                minimumX = Math.min(minimumX, x);
+                minimumZ = Math.min(minimumZ, z);
+                maximumX = Math.max(maximumX, x + 1);
+                maximumZ = Math.max(maximumZ, z + 1);
+            }
+        }
+        if (maximumX == 0) {
+            throw new IllegalArgumentException("A weapon-part item presentation requires a non-empty pattern");
+        }
+        int longestHorizontalSide = Math.max(maximumX - minimumX, maximumZ - minimumZ);
+        return new WeaponPartItemPresentation(
+                (minimumX + maximumX) / 32.0F,
+                (minimumZ + maximumZ) / 32.0F,
+                expandToGui ? MoldPattern.INNER_SIZE / (float) longestHorizontalSide : 1.0F
+        );
+    }
+
+    /** Immutable normalized bounds transform used only for non-ground weapon-part item contexts. */
+    record WeaponPartItemPresentation(float centerX, float centerZ, float uniformScale) {}
 
     private record Face(float x0, float y0, float z0, float u0, float v0,
                         float x1, float y1, float z1, float u1, float v1,
@@ -361,6 +539,10 @@ public final class MoldMeshBuilder {
 
     private static Mesh build(MoldPattern pattern, TextureAtlasSprite sprite, boolean completeShell,
                               RenderType renderType) {
+        return build(MoldMeshTopology.build(pattern, completeShell), sprite, renderType);
+    }
+
+    private static Mesh build(List<MoldMeshTopology.Quad> topology, TextureAtlasSprite sprite, RenderType renderType) {
         // In 26.1, getU/getV take a normalized 0..1 offset.  The explicit
         // endpoints avoid the old 0..16 convention accidentally sampling
         // sixteen neighbouring atlas sprites.
@@ -368,7 +550,6 @@ public final class MoldMeshBuilder {
         float u1 = sprite.getU1();
         float v0 = sprite.getV0();
         float v1 = sprite.getV1();
-        List<MoldMeshTopology.Quad> topology = MoldMeshTopology.build(pattern, completeShell);
         List<Face> faces = new ArrayList<>(topology.size());
         for (MoldMeshTopology.Quad quad : topology) {
             faces.add(face(quad, u0, u1, v0, v1));

@@ -48,8 +48,12 @@ class MoldBlockEntityFillDataTest {
         assertThrows(IllegalArgumentException.class, () -> MoldBlockEntity.readFillMaterial(
                 TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, malformed)));
         assertThrows(IllegalStateException.class,
-                () -> MoldBlockEntity.validateFillState(MoldPattern.EMPTY, MoldFillMaterial.IRON));
+                () -> MoldBlockEntity.validateFillState(MoldPattern.EMPTY, MoldFillMaterial.IRON, 0));
         assertDoesNotThrow(() -> MoldBlockEntity.validateFillState(
-                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON));
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 4));
+        assertThrows(IllegalStateException.class, () -> MoldBlockEntity.validateFillState(
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), MoldFillMaterial.IRON, 10));
+        assertThrows(IllegalStateException.class, () -> MoldBlockEntity.validateFillState(
+                MoldPattern.EMPTY.predictCarve(4, 4).orElseThrow(), null, 1));
     }
 }

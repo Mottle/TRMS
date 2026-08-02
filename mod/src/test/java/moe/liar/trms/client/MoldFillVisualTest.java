@@ -8,6 +8,7 @@ import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import javax.imageio.ImageIO;
+import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import org.junit.jupiter.api.Test;
 
@@ -15,23 +16,34 @@ class MoldFillVisualTest {
     @Test
     void mapsCopperAndIronToStableWarmAndSilverTints() {
         assertEquals(MoldFillVisual.COPPER_COLOR,
-                MoldFillVisual.forMaterial(MoldFillMaterial.COPPER).color());
+                MoldFillVisual.forMaterial(MoldFillMaterial.COPPER).baseColor());
         assertEquals(MoldFillVisual.IRON_COLOR,
-                MoldFillVisual.forMaterial(MoldFillMaterial.IRON).color());
+                MoldFillVisual.forMaterial(MoldFillMaterial.IRON).baseColor());
     }
 
     @Test
     void unknownMaterialsRemainVisibleThroughTheDiagnosticFallbackTint() {
         assertEquals(MoldFillVisual.UNKNOWN_COLOR,
-                MoldFillVisual.forMaterial(MoldFillMaterial.of("example:future_alloy")).color());
+                MoldFillVisual.forMaterial(MoldFillMaterial.of("example:future_alloy")).baseColor());
     }
 
     @Test
-    void fillMeshesUseLevelFifteenPackedLight() {
+    void fillMeshesUseTintableMoltenAndSolidMaterialSprites() {
         assertNull(MoldFillVisual.forMaterial(null));
-        assertEquals(0x00F000F0, MoldMeshBuilder.FULL_BRIGHT_LIGHT);
         assertEquals("trms:block/molten_still", MoldMeshBuilder.MOLTEN_STILL_SPRITE.texture().toString());
         assertEquals("trms:block/molten_flow", MoldMeshBuilder.MOLTEN_FLOW_SPRITE.texture().toString());
+        assertEquals("minecraft:block/iron_block", MoldMeshBuilder.SOLID_METAL_SPRITE.texture().toString());
+    }
+
+    @Test
+    void coolingDarksTheMaterialTintWithoutMakingTheFillTransparent() {
+        MoldFillVisual copper = MoldFillVisual.forMaterial(MoldFillMaterial.COPPER);
+
+        int cooled = copper.colorForCoolingStage(9);
+
+        assertEquals(0xFF, cooled >>> 24);
+        assertEquals(Math.round((MoldFillVisual.COPPER_COLOR >>> 16 & 0xFF) * MoldCooling.FINAL_BRIGHTNESS),
+                cooled >>> 16 & 0xFF);
     }
 
     @Test

@@ -11,15 +11,15 @@ import org.joml.Vector3fc;
 /** NeoForge 26.1 replacement for the removed legacy BlockEntityWithoutLevelRenderer path. */
 public final class MoldSpecialModelRenderer implements SpecialModelRenderer<ItemStack> {
     private final MoldMeshBuilder.Cache meshCache = new MoldMeshBuilder.Cache(true);
-    private final boolean preCenteredItemGeometry;
+    private final Presentation presentation;
 
-    /** Creates the established hand, display-frame, and fallback item renderer. */
+    /** Creates the standard third-person, fixed, and fallback item renderer. */
     public MoldSpecialModelRenderer() {
-        this(true);
+        this(Presentation.STANDARD);
     }
 
-    private MoldSpecialModelRenderer(boolean preCenteredItemGeometry) {
-        this.preCenteredItemGeometry = preCenteredItemGeometry;
+    private MoldSpecialModelRenderer(Presentation presentation) {
+        this.presentation = presentation;
     }
 
     @Override
@@ -27,18 +27,20 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
                        int light, int overlay, boolean foil, int seed) {
         MoldPattern pattern = stack.getOrDefault(TrmsClientMod.MOLD_PATTERN.get(), MoldPattern.EMPTY);
         MoldMeshBuilder.Mesh mesh = meshCache.get(pattern, 0L, MoldMeshBuilder.currentTerracottaSprite());
-        if (preCenteredItemGeometry) {
-            mesh.submitItem(poseStack, collector, light, overlay);
-        } else {
-            mesh.submitGroundItem(poseStack, collector, light, overlay);
+        switch (presentation) {
+            case STANDARD -> mesh.submitItem(poseStack, collector, light, overlay);
+            case FIRST_PERSON -> mesh.submitFirstPersonItem(poseStack, collector, light, overlay);
+            case GROUND -> mesh.submitGroundItem(poseStack, collector, light, overlay);
         }
     }
 
     @Override
     public void getExtents(Consumer<Vector3fc> consumer) {
-        Vector3fc[] extents = preCenteredItemGeometry
-                ? MoldMeshBuilder.ITEM_EXTENTS
-                : MoldMeshBuilder.GROUND_ITEM_EXTENTS;
+        Vector3fc[] extents = switch (presentation) {
+            case STANDARD -> MoldMeshBuilder.ITEM_EXTENTS;
+            case FIRST_PERSON -> MoldMeshBuilder.ITEM_EXTENTS;
+            case GROUND -> MoldMeshBuilder.GROUND_ITEM_EXTENTS;
+        };
         for (Vector3fc extent : extents) {
             consumer.accept(extent);
         }
@@ -60,7 +62,22 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
 
         @Override
         public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
-            return new MoldSpecialModelRenderer(true);
+            return new MoldSpecialModelRenderer(Presentation.STANDARD);
+        }
+    }
+
+    /** Resource-facing renderer retaining the mold's established first-person coordinates. */
+    public record FirstPersonUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<FirstPersonUnbaked> CODEC = MapCodec.unit(new FirstPersonUnbaked());
+
+        @Override
+        public MapCodec<FirstPersonUnbaked> type() {
+            return CODEC;
+        }
+
+        @Override
+        public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new MoldSpecialModelRenderer(Presentation.FIRST_PERSON);
         }
     }
 
@@ -75,7 +92,13 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
 
         @Override
         public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
-            return new MoldSpecialModelRenderer(false);
+            return new MoldSpecialModelRenderer(Presentation.GROUND);
         }
+    }
+
+    private enum Presentation {
+        STANDARD,
+        FIRST_PERSON,
+        GROUND
     }
 }

@@ -18,6 +18,13 @@ class MoldMoltenEffectsTest {
         assertSurfaceInCell(pattern, Direction.EAST, 6, 11);
     }
 
+    @Test
+    void coolingLinearlyReducesButNeverEliminatesLocalMoltenEffectChances() {
+        assertEquals(50, MoldMoltenEffects.intervalForCooling(50, 0));
+        assertEquals(143, MoldMoltenEffects.intervalForCooling(50, 9));
+        assertEquals(286, MoldMoltenEffects.intervalForCooling(100, 9));
+    }
+
     private static void assertSurfaceInCell(MoldPattern pattern, Direction facing, int minX, int minZ) {
         MoldMoltenEffects.Surface surface = MoldMoltenEffects.randomSurface(pattern, facing,
                 RandomSource.create(4815162342L));

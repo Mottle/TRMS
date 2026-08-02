@@ -1,6 +1,7 @@
 package moe.liar.trms.client;
 
 import java.util.Objects;
+import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import moe.liar.trms.common.MoldPersistence;
 import net.minecraft.core.BlockPos;
@@ -20,6 +21,7 @@ public final class MoldBlockEntity extends BlockEntity {
     private MoldPattern pattern = MoldPattern.EMPTY;
     private long revision;
     private @Nullable MoldFillMaterial fillMaterial;
+    private int coolingStage;
     /*
      * Render states are recreated every frame in Minecraft 26.1. Keep the
      * immutable derived data with this client BE instead; the BE's chunk/world
@@ -49,6 +51,11 @@ public final class MoldBlockEntity extends BlockEntity {
         return fillMaterial != null;
     }
 
+    /** Returns the server-authoritative visible cooling stage while this mold remains filled. */
+    public int coolingStage() {
+        return coolingStage;
+    }
+
     MoldRenderCache renderCache() {
         return renderCache;
     }
@@ -68,7 +75,8 @@ public final class MoldBlockEntity extends BlockEntity {
             throw new IllegalStateException("TRMS mold revision must not be negative");
         }
         fillMaterial = readFillMaterial(input);
-        validateFillState(pattern, fillMaterial);
+        coolingStage = input.getIntOr(MoldPersistence.COOLING_STAGE_KEY, 0);
+        validateFillState(pattern, fillMaterial, coolingStage);
         renderCache.invalidate();
     }
 
@@ -79,6 +87,7 @@ public final class MoldBlockEntity extends BlockEntity {
         output.store(MoldPersistence.PATTERN_KEY, MoldPattern.CODEC, pattern);
         output.putLong(MoldPersistence.REVISION_KEY, revision);
         writeFillMaterial(output, fillMaterial);
+        output.putInt(MoldPersistence.COOLING_STAGE_KEY, coolingStage);
     }
 
     @Override
@@ -88,6 +97,7 @@ public final class MoldBlockEntity extends BlockEntity {
         // Fill state belongs only to the placed block entity and is stripped from
         // the item component on every placement.
         fillMaterial = null;
+        coolingStage = 0;
         renderCache.invalidate();
     }
 
@@ -109,10 +119,16 @@ public final class MoldBlockEntity extends BlockEntity {
     }
 
     /** Mirrors the Extension's persistence invariant before a client render state observes it. */
-    static void validateFillState(MoldPattern pattern, @Nullable MoldFillMaterial material) {
+    static void validateFillState(MoldPattern pattern, @Nullable MoldFillMaterial material, int coolingStage) {
         Objects.requireNonNull(pattern, "pattern");
         if (pattern.carvedCount() == 0 && material != null) {
             throw new IllegalStateException("An empty TRMS mold cannot contain fill material");
+        }
+        if (material != null && !MoldCooling.isValidStage(coolingStage)) {
+            throw new IllegalStateException("Invalid TRMS mold cooling stage: " + coolingStage);
+        }
+        if (material == null && coolingStage != 0) {
+            throw new IllegalStateException("An unfilled TRMS mold cannot retain cooling progress");
         }
     }
 

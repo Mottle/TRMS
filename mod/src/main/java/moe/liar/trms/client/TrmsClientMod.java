@@ -1,6 +1,7 @@
 package moe.liar.trms.client;
 
 import moe.liar.trms.common.TrmsProtocol;
+import moe.liar.trms.common.MoldCooling;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
@@ -34,6 +35,10 @@ public final class TrmsClientMod {
             COMPONENTS.registerComponentType("mold_pattern", builder -> builder
                     .persistent(MoldPattern.CODEC)
                     .networkSynchronized(MoldPattern.STREAM_CODEC));
+    public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<WeaponPartData>> WEAPON_PART =
+            COMPONENTS.registerComponentType("weapon_part", builder -> builder
+                    .persistent(WeaponPartData.CODEC)
+                    .networkSynchronized(WeaponPartData.STREAM_CODEC));
 
     public static final DeferredHolder<Block, MoldBlock> MOLD = BLOCKS.registerBlock(
             "mold",
@@ -46,7 +51,9 @@ public final class TrmsClientMod {
                     // Extension's filled-state light emission. Server light
                     // packets remain authoritative, while this also keeps local
                     // light recalculation and state-dependent rendering coherent.
-                    .lightLevel(state -> state.getValue(MoldBlock.FILLED) ? 15 : 0)
+                    .lightLevel(state -> state.getValue(MoldBlock.FILLED)
+                            ? MoldCooling.lightLevel(state.getValue(MoldBlock.COOLING_STAGE))
+                            : 0)
                     .noOcclusion()
     );
     public static final DeferredHolder<Item, BlockItem> MOLD_ITEM = ITEMS.registerItem(
@@ -54,6 +61,10 @@ public final class TrmsClientMod {
             properties -> new BlockItem(MOLD.get(), properties
                     .stacksTo(1)
                     .useBlockDescriptionPrefix())
+    );
+    public static final DeferredHolder<Item, Item> WEAPON_PART_ITEM = ITEMS.registerItem(
+            "weapon_part",
+            properties -> new Item(properties.stacksTo(1))
     );
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MoldBlockEntity>> MOLD_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("mold", () -> new BlockEntityType<>(MoldBlockEntity::new, MOLD.get()));
@@ -70,7 +81,6 @@ public final class TrmsClientMod {
         modBus.addListener(TrmsHandshake::registerPayloads);
         modBus.addListener(TrmsHandshake::registerClientHandlers);
         NeoForge.EVENT_BUS.addListener(TrmsCarvingInput::onRightClickBlock);
-        NeoForge.EVENT_BUS.addListener(MoldHandRenderer::renderHeldMoldHand);
         LOGGER.info("TRMS client mod initialized (protocol v{})", TrmsProtocol.VERSION);
     }
 }

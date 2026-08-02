@@ -14,24 +14,35 @@ import org.junit.jupiter.api.Test;
 
 class MoldBlockStateResourceTest {
     @Test
-    void declaresEveryFacingAndFillStateWithTheCanonicalModelTurn() throws IOException {
+    void declaresEveryFacingWithTheCanonicalModelTurnWithoutEnumeratingCoolingStates() throws IOException {
         try (InputStream resource = getClass().getResourceAsStream("/assets/trms/blockstates/mold.json")) {
             assertNotNull(resource, "mold blockstate resource must be packaged for the client");
-            JsonObject variants = JsonParser.parseString(new String(resource.readAllBytes(), StandardCharsets.UTF_8))
+            JsonObject blockState = JsonParser.parseString(new String(resource.readAllBytes(), StandardCharsets.UTF_8))
                     .getAsJsonObject()
-                    .getAsJsonObject("variants");
+                    ;
+            assertFalse(blockState.has("variants"));
+            var multipart = blockState.getAsJsonArray("multipart");
+            assertNotNull(multipart);
+            assertEquals(4, multipart.size());
 
             assertEquals(Set.of(
-                    "facing=south,filled=false", "facing=south,filled=true",
-                    "facing=west,filled=false", "facing=west,filled=true",
-                    "facing=north,filled=false", "facing=north,filled=true",
-                    "facing=east,filled=false", "facing=east,filled=true"
-            ), variants.keySet());
-            for (String filled : new String[] {"false", "true"}) {
-                assertFalse(variants.getAsJsonObject("facing=south,filled=" + filled).has("y"));
-                assertEquals(90, variants.getAsJsonObject("facing=west,filled=" + filled).get("y").getAsInt());
-                assertEquals(180, variants.getAsJsonObject("facing=north,filled=" + filled).get("y").getAsInt());
-                assertEquals(270, variants.getAsJsonObject("facing=east,filled=" + filled).get("y").getAsInt());
+                    "south", "west", "north", "east"
+            ), java.util.stream.StreamSupport.stream(multipart.spliterator(), false)
+                    .map(element -> element.getAsJsonObject().getAsJsonObject("when")
+                            .get("facing").getAsString())
+                    .collect(java.util.stream.Collectors.toSet()));
+            for (var element : multipart) {
+                JsonObject entry = element.getAsJsonObject();
+                String facing = entry.getAsJsonObject("when").get("facing").getAsString();
+                JsonObject apply = entry.getAsJsonObject("apply");
+                assertEquals("trms:block/mold", apply.get("model").getAsString());
+                switch (facing) {
+                    case "south" -> assertFalse(apply.has("y"));
+                    case "west" -> assertEquals(90, apply.get("y").getAsInt());
+                    case "north" -> assertEquals(180, apply.get("y").getAsInt());
+                    case "east" -> assertEquals(270, apply.get("y").getAsInt());
+                    default -> throw new AssertionError("unexpected facing " + facing);
+                }
             }
         }
     }

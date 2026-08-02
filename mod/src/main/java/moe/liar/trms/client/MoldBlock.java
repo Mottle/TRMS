@@ -2,6 +2,7 @@ package moe.liar.trms.client;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import moe.liar.trms.common.MoldCooling;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.item.context.BlockPlaceContext;
@@ -20,6 +21,7 @@ import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -30,12 +32,16 @@ public final class MoldBlock extends Block implements EntityBlock {
     public static final Property<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     /** Mirrors the Extension's light-emitting filled state; the BE owns the material ID. */
     public static final BooleanProperty FILLED = BooleanProperty.create("filled");
+    /** Mirrors the server's visible cooling stage so client light prediction matches the authoritative block. */
+    public static final IntegerProperty COOLING_STAGE = IntegerProperty.create(
+            "cooling_stage", 0, MoldCooling.STAGE_COUNT - 1);
 
     public MoldBlock(BlockBehaviour.Properties properties) {
         super(properties);
         registerDefaultState(defaultBlockState()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(FILLED, false));
+                .setValue(FILLED, false)
+                .setValue(COOLING_STAGE, 0));
     }
 
     /** Mirrors the Extension placement state so the client predicts the same orientation. */
@@ -55,7 +61,7 @@ public final class MoldBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, FILLED);
+        builder.add(FACING, FILLED, COOLING_STAGE);
     }
 
     @Override
@@ -92,7 +98,7 @@ public final class MoldBlock extends Block implements EntityBlock {
             return;
         }
         if (level.getBlockEntity(pos) instanceof MoldBlockEntity mold && mold.isFilled()) {
-            MoldMoltenEffects.animate(level, pos, mold.pattern(), facing(state), random);
+            MoldMoltenEffects.animate(level, pos, mold.pattern(), facing(state), mold.coolingStage(), random);
         }
     }
 

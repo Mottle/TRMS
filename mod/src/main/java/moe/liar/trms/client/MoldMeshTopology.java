@@ -19,6 +19,9 @@ public final class MoldMeshTopology {
     static final float FILL_SURFACE_Y = 1.75F;
     /** Keeps translucent fill walls off the solid ceramic cavity walls. */
     static final float FILL_SIDE_INSET = 0.001F;
+    /** A solid weapon part is one model pixel thick and has closed geometry on every display side. */
+    static final float WEAPON_PART_BASE_Y = 0.0F;
+    static final float WEAPON_PART_SURFACE_Y = 1.0F;
 
     private MoldMeshTopology() {}
 
@@ -61,6 +64,39 @@ public final class MoldMeshTopology {
                 if (!pattern.isCarved(x, z + 1)) {
                     south(quads, x + FILL_SIDE_INSET, z + 1 - FILL_SIDE_INSET,
                             1.0F - 2.0F * FILL_SIDE_INSET, FILL_BASE_Y, FILL_SURFACE_Y);
+                }
+            }
+        }
+        return List.copyOf(quads);
+    }
+
+    /**
+     * Builds the closed one-pixel-thick silhouette used by a completed weapon-part item.
+     *
+     * <p>Unlike molten fill, a held or dropped part can be viewed from below,
+     * so it includes its lower faces. Adjacent cells still share no internal
+     * faces, preserving the continuous player-authored outline.</p>
+     */
+    public static List<Quad> buildWeaponPart(MoldPattern pattern) {
+        List<Quad> quads = new ArrayList<>();
+        for (int z = 1; z <= MoldPattern.INNER_SIZE; z++) {
+            for (int x = 1; x <= MoldPattern.INNER_SIZE; x++) {
+                if (!pattern.isCarved(x, z)) {
+                    continue;
+                }
+                top(quads, x, z, x + 1, z + 1, WEAPON_PART_SURFACE_Y);
+                bottom(quads, x, z, x + 1, z + 1, WEAPON_PART_BASE_Y);
+                if (!pattern.isCarved(x - 1, z)) {
+                    west(quads, x, z, 1.0F, WEAPON_PART_BASE_Y, WEAPON_PART_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x + 1, z)) {
+                    east(quads, x + 1, z, 1.0F, WEAPON_PART_BASE_Y, WEAPON_PART_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x, z - 1)) {
+                    north(quads, x, z, 1.0F, WEAPON_PART_BASE_Y, WEAPON_PART_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x, z + 1)) {
+                    south(quads, x, z + 1, 1.0F, WEAPON_PART_BASE_Y, WEAPON_PART_SURFACE_Y);
                 }
             }
         }

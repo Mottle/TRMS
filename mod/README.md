@@ -12,7 +12,8 @@ is embedded into this built Mod JAR. `mod` never imports the Extension module.
 ## Client responsibilities
 
 The mod defines the exact client registry mirrors for the individually
-registered `trms:mold`, `trms:mold_pattern`, and mold block entity. The
+registered `trms:mold`, `trms:mold_pattern`, `trms:weapon_part`, and mold block
+entity. The
 196-bit pattern is encoded as exactly 25 raw bytes on the wire, with the same
 row-major `x/z = 1..14` mapping as the Extension. Carving uses normal pickaxes
 from the `minecraft:pickaxes` item tag; the client mod does not register a
@@ -28,10 +29,17 @@ When the server marks a non-empty mold filled, the renderer covers its carved
 cells with a contiguous, visual-only molten surface. It sits slightly below the
 ceramic rim, removes internal shared faces, uses project-owned greyscale copies
 of the vanilla lava animations, and applies a stable copper or silver-iron
-tint at full lava light. This is not a `FluidState`: it cannot flow, heat, or
-change collision. Filled molds also emit local-only, low-frequency lava sparks,
-smoke, pop sounds, and ambient lava audio from their actual rotated cavity
-cells; unsupported future material IDs use a conspicuous fallback tint.
+tint. The server-synchronized cooling stage advances every 20 ticks and lowers
+both emitted light (15 to 1) and tint brightness (100% to 35%); client-local
+lava sparks, smoke, pop sounds, and ambient audio decline on the same curve.
+This is not a `FluidState`: it cannot flow, heat, or change collision.
+Unsupported future material IDs use a conspicuous fallback tint.
+
+At the final 200-tick cooling update the server emits a `trms:weapon_part`
+item. Its dynamically rendered model is the exact closed single-pixel-thick
+`MoldPattern` silhouette without the ceramic shell, and uses the same copper or
+silver-iron material colour as the molten source. It is a future weapon
+assembly input, with no independent use behavior in this iteration.
 
 Each placed mold also has a horizontal `facing` state and faces the player who
 placed it. The client rotates the static model, dynamic mesh, lighting, carving

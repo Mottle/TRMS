@@ -10,6 +10,7 @@ public final class MoldBlockEntityRenderState extends BlockEntityRenderState {
     public MoldPattern pattern = MoldPattern.EMPTY;
     public long revision;
     public @Nullable MoldFillMaterial fillMaterial;
+    public int coolingStage;
     public MoldMeshBuilder.WorldLighting worldLighting;
     public Direction facing = Direction.NORTH;
     public boolean showCarvingGuide;
