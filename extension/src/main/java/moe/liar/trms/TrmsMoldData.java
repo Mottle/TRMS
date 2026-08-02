@@ -2,6 +2,7 @@ package moe.liar.trms;
 
 import java.util.Objects;
 import java.util.Optional;
+import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import moe.liar.trms.common.MoldPersistence;
 import net.minecraft.core.component.DataComponentGetter;
@@ -17,12 +18,14 @@ final class TrmsMoldData {
     }
 
     static void save(ValueOutput output, TrmsMoldPattern pattern, long revision,
-                     Optional<MoldFillMaterial> fillMaterial) {
+                     Optional<MoldFillMaterial> fillMaterial, int coolingStage) {
+        State state = new State(pattern, revision, fillMaterial, coolingStage);
         output.putInt(MoldPersistence.FORMAT_KEY, MoldPersistence.FORMAT_VERSION);
-        output.store(MoldPersistence.PATTERN_KEY, TrmsMoldPattern.CODEC, Objects.requireNonNull(pattern, "pattern"));
-        output.putLong(MoldPersistence.REVISION_KEY, revision);
-        Objects.requireNonNull(fillMaterial, "fillMaterial")
+        output.store(MoldPersistence.PATTERN_KEY, TrmsMoldPattern.CODEC, state.pattern());
+        output.putLong(MoldPersistence.REVISION_KEY, state.revision());
+        state.fillMaterial()
                 .ifPresent(material -> output.putString(MoldPersistence.FILL_MATERIAL_KEY, material.id()));
+        output.putInt(MoldPersistence.COOLING_STAGE_KEY, state.coolingStage());
     }
 
     static State load(ValueInput input) {
@@ -39,10 +42,17 @@ final class TrmsMoldData {
         }
         Optional<MoldFillMaterial> fillMaterial = input.getString(MoldPersistence.FILL_MATERIAL_KEY)
                 .map(MoldFillMaterial::of);
+        int coolingStage = input.getIntOr(MoldPersistence.COOLING_STAGE_KEY, 0);
         if (pattern.isEmpty() && fillMaterial.isPresent()) {
             throw new IllegalStateException("An empty TRMS mold cannot contain fill material");
         }
-        return new State(pattern, revision, fillMaterial);
+        if (fillMaterial.isPresent() && !MoldCooling.isValidStage(coolingStage)) {
+            throw new IllegalStateException("Invalid TRMS mold cooling stage: " + coolingStage);
+        }
+        if (fillMaterial.isEmpty() && coolingStage != 0) {
+            throw new IllegalStateException("An unfilled TRMS mold cannot retain cooling progress");
+        }
+        return new State(pattern, revision, fillMaterial, coolingStage);
     }
 
     static void storeItemPattern(ItemStack stack, DataComponentType<TrmsMoldPattern> component,
@@ -61,10 +71,22 @@ final class TrmsMoldData {
         return Optional.ofNullable(components.get(component));
     }
 
-    record State(TrmsMoldPattern pattern, long revision, Optional<MoldFillMaterial> fillMaterial) {
+    record State(TrmsMoldPattern pattern, long revision, Optional<MoldFillMaterial> fillMaterial,
+                 int coolingStage) {
         State {
             Objects.requireNonNull(pattern, "pattern");
             Objects.requireNonNull(fillMaterial, "fillMaterial");
+            if (revision < 0L) {
+                throw new IllegalArgumentException("TRMS mold revision must not be negative");
+            }
+            if (pattern.isEmpty() && fillMaterial.isPresent()) {
+                throw new IllegalArgumentException("An empty TRMS mold cannot contain fill material");
+            }
+            if (fillMaterial.isPresent()) {
+                MoldCooling.requireValidStage(coolingStage);
+            } else if (coolingStage != 0) {
+                throw new IllegalArgumentException("An unfilled TRMS mold cannot retain cooling progress");
+            }
         }
     }
 }

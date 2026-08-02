@@ -86,6 +86,11 @@ public final class TrmsMoldPattern {
         return new TrmsMoldPattern(moe.liar.trms.common.MoldPattern.fromBytes(bytes));
     }
 
+    /** Returns the immutable shared value for another Extension-side value adapter. */
+    moe.liar.trms.common.MoldPattern commonPattern() {
+        return value;
+    }
+
     private static DataResult<TrmsMoldPattern> decodeSerialized(int formatVersion, List<Byte> encoded) {
         if (formatVersion != FORMAT_VERSION) {
             return DataResult.error(() -> "Unsupported TRMS mold pattern format " + formatVersion

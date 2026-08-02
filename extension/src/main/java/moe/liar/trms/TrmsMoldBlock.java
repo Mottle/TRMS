@@ -4,6 +4,7 @@ import com.mojang.serialization.MapCodec;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
+import moe.liar.trms.common.MoldCooling;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.ResourceKey;
@@ -32,6 +33,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.storage.loot.LootParams;
 import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
@@ -47,6 +49,9 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
     private static final VoxelShape FIXED_SLAB_SHAPE = Block.box(0.0D, 0.0D, 0.0D, 16.0D, 2.0D, 16.0D);
     static final Property<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
     static final BooleanProperty FILLED = BooleanProperty.create("filled");
+    /** Derived cooling stage keeps the state-dependent world light in sync with the authoritative BE. */
+    static final IntegerProperty COOLING_STAGE = IntegerProperty.create(
+            "cooling_stage", 0, MoldCooling.STAGE_COUNT - 1);
 
     private final Supplier<BlockEntityType<TrmsMoldBlockEntity>> typeSupplier;
 
@@ -56,7 +61,8 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
         this.typeSupplier = typeSupplier;
         registerDefaultState(defaultBlockState()
                 .setValue(FACING, Direction.NORTH)
-                .setValue(FILLED, false));
+                .setValue(FILLED, false)
+                .setValue(COOLING_STAGE, 0));
     }
 
     @Override
@@ -76,7 +82,7 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING, FILLED);
+        builder.add(FACING, FILLED, COOLING_STAGE);
     }
 
     @Override
@@ -125,6 +131,16 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
             stack.shrink(1);
         }
         return InteractionResult.SUCCESS_SERVER;
+    }
+
+    @Override
+    protected void tick(BlockState state, ServerLevel level, BlockPos pos, RandomSource random) {
+        if (!state.is(TrmsContent.MOLD.block()) || !state.getValue(FILLED)) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof TrmsMoldBlockEntity mold && mold.advanceCooling()) {
+            level.scheduleTick(pos, this, MoldCooling.TICK_INTERVAL);
+        }
     }
 
     @Override

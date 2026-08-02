@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
+import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -12,7 +13,6 @@ import net.minecraft.world.item.Items;
 
 /** Server-side gameplay bindings for extensible, side-neutral fill material IDs. */
 final class TrmsMoldFillMaterials {
-    static final int MOLTEN_LIGHT_LEVEL = 15;
 
     private static final List<Definition> DEFINITIONS = List.of(
             new Definition(MoldFillMaterial.COPPER, Items.COPPER_INGOT),
@@ -46,8 +46,8 @@ final class TrmsMoldFillMaterials {
         return DEFINITIONS.stream().filter(definition -> definition.ingredient() == item).findFirst();
     }
 
-    static int lightLevel(boolean filled) {
-        return filled ? MOLTEN_LIGHT_LEVEL : 0;
+    static int lightLevel(boolean filled, int coolingStage) {
+        return filled ? MoldCooling.lightLevel(coolingStage) : 0;
     }
 
     /** One authoritative server gameplay binding; additional materials append another definition. */

@@ -31,7 +31,8 @@ class TrmsMoldFillMaterialsTest {
 
     @Test
     void moltenDemoMaterialsEmitVanillaLavaLight() {
-        assertEquals(0, TrmsMoldFillMaterials.lightLevel(false));
-        assertEquals(15, TrmsMoldFillMaterials.lightLevel(true));
+        assertEquals(0, TrmsMoldFillMaterials.lightLevel(false, 0));
+        assertEquals(15, TrmsMoldFillMaterials.lightLevel(true, 0));
+        assertEquals(1, TrmsMoldFillMaterials.lightLevel(true, 9));
     }
 }

@@ -4,6 +4,7 @@ import moe.liar.trms.common.TrmsProtocol;
 import moe.liar.horizon.extension.ExtensionContext;
 import moe.liar.horizon.extension.registrate.DeclarativeRegistrar;
 import moe.liar.horizon.extension.registrate.entry.BlockEntry;
+import moe.liar.horizon.extension.registrate.entry.ItemEntry;
 import moe.liar.horizon.extension.registrate.entry.RegistryEntry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -22,6 +23,16 @@ final class TrmsContent {
                     .networkSynchronized(TrmsMoldPattern.STREAM_CODEC)
                     .register();
 
+    static final RegistryEntry<DataComponentType<TrmsWeaponPart>> WEAPON_PART =
+            REGISTRAR.<TrmsWeaponPart>dataComponent("weapon_part")
+                    .persistent(TrmsWeaponPart.CODEC)
+                    .networkSynchronized(TrmsWeaponPart.STREAM_CODEC)
+                    .register();
+
+    static final ItemEntry<Item> WEAPON_PART_ITEM = REGISTRAR.item("weapon_part")
+            .properties(properties -> properties.stacksTo(1))
+            .register();
+
     static final BlockEntry<TrmsMoldBlock, TrmsMoldBlockEntity, AbstractContainerMenu> MOLD =
             REGISTRAR.block("mold", (properties, key) ->
                             new TrmsMoldBlock(properties, key, TrmsContent::moldBlockEntityType))
@@ -30,7 +41,8 @@ final class TrmsContent {
                             .strength(1.25F, 6.0F)
                             .sound(SoundType.DECORATED_POT)
                             .lightLevel(state -> TrmsMoldFillMaterials.lightLevel(
-                                    state.getValue(TrmsMoldBlock.FILLED)))
+                                    state.getValue(TrmsMoldBlock.FILLED),
+                                    state.getValue(TrmsMoldBlock.COOLING_STAGE)))
                             .noOcclusion())
                     .item(properties -> properties.stacksTo(1))
                     .blockEntity(TrmsMoldBlockEntity::new)
@@ -50,6 +62,14 @@ final class TrmsContent {
 
     static Item moldItem() {
         return MOLD.item();
+    }
+
+    static DataComponentType<TrmsWeaponPart> weaponPartComponent() {
+        return WEAPON_PART.get();
+    }
+
+    static Item weaponPartItem() {
+        return WEAPON_PART_ITEM.get();
     }
 
     private TrmsContent() {

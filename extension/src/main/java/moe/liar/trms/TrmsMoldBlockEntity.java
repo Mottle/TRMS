@@ -2,6 +2,7 @@ package moe.liar.trms;
 
 import java.util.Objects;
 import java.util.Optional;
+import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponentGetter;
@@ -12,6 +13,8 @@ import net.minecraft.network.protocol.Packet;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -23,6 +26,7 @@ import net.minecraft.world.level.storage.ValueOutput;
 final class TrmsMoldBlockEntity extends BlockEntity {
     private TrmsMoldPattern pattern = TrmsMoldPattern.empty();
     private Optional<MoldFillMaterial> fillMaterial = Optional.empty();
+    private int coolingStage;
     private long revision;
 
     TrmsMoldBlockEntity(BlockEntityType<TrmsMoldBlockEntity> type, BlockPos pos, BlockState state) {
@@ -39,6 +43,10 @@ final class TrmsMoldBlockEntity extends BlockEntity {
 
     Optional<MoldFillMaterial> fillMaterial() {
         return fillMaterial;
+    }
+
+    int coolingStage() {
+        return coolingStage;
     }
 
     boolean canFill() {
@@ -63,8 +71,29 @@ final class TrmsMoldBlockEntity extends BlockEntity {
             return false;
         }
         fillMaterial = Optional.of(material);
+        coolingStage = 0;
         revision++;
 
+        if (level instanceof ServerLevel serverLevel) {
+            synchronizeFilledBlockState(serverLevel);
+            scheduleCoolingTick(serverLevel);
+        }
+        setChanged();
+        return true;
+    }
+
+    /** Advances one loaded-server cooling second and returns whether another tick is required. */
+    boolean advanceCooling() {
+        if (fillMaterial.isEmpty()) {
+            return false;
+        }
+        if (MoldCooling.completesOnNextUpdate(coolingStage)) {
+            completeCooling(fillMaterial.orElseThrow());
+            return false;
+        }
+
+        coolingStage = MoldCooling.advanceStage(coolingStage);
+        revision++;
         if (level instanceof ServerLevel serverLevel) {
             synchronizeFilledBlockState(serverLevel);
         }
@@ -74,11 +103,12 @@ final class TrmsMoldBlockEntity extends BlockEntity {
 
     /** Restores the portable item state on placement without trusting arbitrary block NBT. */
     void restoreFromItemPattern(TrmsMoldPattern itemPattern) {
-        if (pattern.equals(itemPattern) && fillMaterial.isEmpty() && revision == 0L) {
+        if (pattern.equals(itemPattern) && fillMaterial.isEmpty() && coolingStage == 0 && revision == 0L) {
             return;
         }
         pattern = itemPattern;
         fillMaterial = Optional.empty();
+        coolingStage = 0;
         revision = 0L;
         setChanged();
     }
@@ -88,6 +118,18 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         super.setChanged();
         if (level instanceof ServerLevel && !level.isClientSide()) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
+        }
+    }
+
+    @Override
+    public void setLevel(Level level) {
+        super.setLevel(level);
+        if (level instanceof ServerLevel serverLevel && fillMaterial.isPresent()) {
+            // Scheduled ticks normally survive chunk saves. Scheduling here as
+            // well gives a loaded BE a safe resume path after restart; the
+            // level deduplicates same-block pending ticks at one position.
+            synchronizeFilledBlockState(serverLevel);
+            scheduleCoolingTick(serverLevel);
         }
     }
 
@@ -108,15 +150,19 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         pattern = saved.pattern();
         revision = saved.revision();
         fillMaterial = saved.fillMaterial();
+        coolingStage = saved.coolingStage();
         if (level instanceof ServerLevel serverLevel) {
             synchronizeFilledBlockState(serverLevel);
+            if (fillMaterial.isPresent()) {
+                scheduleCoolingTick(serverLevel);
+            }
         }
     }
 
     @Override
     protected void saveAdditional(ValueOutput output) {
         super.saveAdditional(output);
-        TrmsMoldData.save(output, pattern, revision, fillMaterial);
+        TrmsMoldData.save(output, pattern, revision, fillMaterial, coolingStage);
     }
 
     @Override
@@ -126,6 +172,7 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         if (componentPattern != null) {
             pattern = componentPattern;
             fillMaterial = Optional.empty();
+            coolingStage = 0;
             revision = 0L;
         }
     }
@@ -136,17 +183,39 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         components.set(TrmsContent.moldPatternComponent(), pattern);
     }
 
-    /** Keeps the light-emission blockstate as a derived projection of BE material data. */
+    /** Keeps the light-emission blockstate as a derived projection of BE material and cooling data. */
     private void synchronizeFilledBlockState(ServerLevel serverLevel) {
         BlockState state = getBlockState();
         if (!state.is(TrmsContent.MOLD.block())) {
             return;
         }
         boolean shouldBeFilled = fillMaterial.isPresent();
-        if (state.getValue(TrmsMoldBlock.FILLED) != shouldBeFilled) {
+        int desiredCoolingStage = shouldBeFilled ? coolingStage : 0;
+        BlockState desiredState = state
+                .setValue(TrmsMoldBlock.FILLED, shouldBeFilled)
+                .setValue(TrmsMoldBlock.COOLING_STAGE, desiredCoolingStage);
+        if (state != desiredState) {
             serverLevel.setBlock(worldPosition,
-                    state.setValue(TrmsMoldBlock.FILLED, shouldBeFilled), Block.UPDATE_ALL);
+                    desiredState, Block.UPDATE_ALL);
             serverLevel.getLightEngine().checkBlock(worldPosition);
         }
+    }
+
+    private void scheduleCoolingTick(ServerLevel serverLevel) {
+        serverLevel.scheduleTick(worldPosition, TrmsContent.MOLD.block(), MoldCooling.TICK_INTERVAL);
+    }
+
+    private void completeCooling(MoldFillMaterial material) {
+        if (!(level instanceof ServerLevel serverLevel)) {
+            return;
+        }
+        ItemStack weaponPart = new ItemStack(TrmsContent.weaponPartItem());
+        weaponPart.set(TrmsContent.weaponPartComponent(), new TrmsWeaponPart(pattern, material));
+        fillMaterial = Optional.empty();
+        coolingStage = 0;
+        revision++;
+        synchronizeFilledBlockState(serverLevel);
+        setChanged();
+        Block.popResourceFromFace(serverLevel, worldPosition, net.minecraft.core.Direction.UP, weaponPart);
     }
 }

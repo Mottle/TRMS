@@ -17,6 +17,7 @@ The Extension explicitly registers these individual entries:
 
 - `trms:mold` block and block item;
 - `trms:mold_pattern` immutable data component;
+- `trms:weapon_part` item and immutable casting data component;
 - `trms:mold` block entity.
 
 A placed mold has a fixed `16 x 16 x 2` physical shell.  Its lower layer and
@@ -58,15 +59,20 @@ Carving is enabled only while the mold's direct support block is
 support, but a pickaxe interaction on every other base is rejected before a
 cell is changed or durability is consumed.
 
-The block entity persists `MoldFormat`, `Pattern`, `Revision`, and its optional
-placed-only `FillMaterial` ID; it emits a standard block-entity update packet
-after every accepted carving or filling. A non-empty, unfilled mold accepts one
+The block entity persists `MoldFormat`, `Pattern`, `Revision`, optional
+placed-only `FillMaterial` ID, and `CoolingStage`; it emits a standard
+block-entity update packet after every accepted carving, filling, or cooling
+stage. A non-empty, unfilled mold accepts one
 right-click with a copper or iron ingot without requiring a lodestone. Survival
 and adventure consume one ingot, while creative does not. Filling is one-way:
-it blocks further carving and refilling, emits light level 15, and never creates
-a real fluid. Breaking a mold writes only its pattern to the dropped item, so
-re-placement always clears the fill. Invalid persisted data is rejected
-explicitly rather than silently resetting a player's mold.
+it blocks further carving and refilling, starts at light level 15, and never
+creates a real fluid. The Extension advances cooling every 20 loaded ticks;
+after 200 ticks it drops exactly one `trms:weapon_part` carrying the original
+pattern and material, then clears the fill while retaining the reusable mold
+pattern. Light descends to 1 over the ten visible stages. Breaking a mold
+before completion writes only its pattern to the dropped mold item and never
+creates a part. Invalid persisted data is rejected explicitly rather than
+silently resetting a player's mold.
 
 During the configuration phase the Extension requires the paired client mod.
 It sends a nonce-bound `trms:protocol_challenge`, requires
