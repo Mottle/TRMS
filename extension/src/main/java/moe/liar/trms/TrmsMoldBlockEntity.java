@@ -53,14 +53,14 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         return !pattern.isEmpty() && fillMaterial.isEmpty();
     }
 
-    /** Applies one server-validated carving and emits the ordinary BE update packet. */
+    /** Applies one server-validated carving and sends the new editable pattern to chunk watchers. */
     boolean carve(int localX, int localZ) {
         if (fillMaterial.isPresent() || !pattern.canCarve(localX, localZ)) {
             return false;
         }
         pattern = pattern.carve(localX, localZ);
         revision++;
-        setChanged();
+        markChangedAndSynchronize();
         return true;
     }
 
@@ -74,11 +74,12 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         coolingTicks = 0;
         revision++;
 
+        boolean blockStateUpdateSent = false;
         if (level instanceof ServerLevel serverLevel) {
-            synchronizeFilledBlockState(serverLevel);
+            blockStateUpdateSent = synchronizeFilledBlockState(serverLevel);
             scheduleCoolingTick(serverLevel);
         }
-        setChanged();
+        markChangedAndSynchronizeIfNeeded(blockStateUpdateSent);
         return true;
     }
 
@@ -92,12 +93,24 @@ final class TrmsMoldBlockEntity extends BlockEntity {
             return false;
         }
 
-        coolingTicks = MoldCooling.advanceElapsedTicks(coolingTicks);
+        int previousCoolingTicks = coolingTicks;
+        boolean clientVisibleStageChanged = requiresCoolingVisualSynchronization(previousCoolingTicks);
+        coolingTicks = MoldCooling.advanceElapsedTicks(previousCoolingTicks);
         revision++;
+        boolean blockStateUpdateSent = false;
         if (level instanceof ServerLevel serverLevel) {
-            synchronizeFilledBlockState(serverLevel);
+            if (clientVisibleStageChanged) {
+                blockStateUpdateSent = synchronizeFilledBlockState(serverLevel);
+            }
         }
-        setChanged();
+        if (clientVisibleStageChanged) {
+            markChangedAndSynchronizeIfNeeded(blockStateUpdateSent);
+        } else {
+            // The first fifteen seconds stay in visual stage zero. Keep every
+            // checkpoint crash-safe without retransmitting an identical
+            // pattern/material/tint state to each chunk watcher.
+            super.setChanged();
+        }
         return true;
     }
 
@@ -110,15 +123,40 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         fillMaterial = Optional.empty();
         coolingTicks = 0;
         revision = 0L;
-        setChanged();
+        markChangedAndSynchronize();
     }
 
-    @Override
-    public void setChanged() {
+    /** Persists a server-side mutation and forces a normal BE update for an unchanged block state. */
+    private void markChangedAndSynchronize() {
         super.setChanged();
         if (level instanceof ServerLevel && !level.isClientSide()) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), Block.UPDATE_CLIENTS);
         }
+    }
+
+    /**
+     * Persists a mutation without duplicating the BE update already emitted
+     * by a {@link Block#UPDATE_CLIENTS} block-state transition.
+     */
+    private void markChangedAndSynchronizeIfNeeded(boolean blockStateUpdateSent) {
+        if (blockStateUpdateSent) {
+            super.setChanged();
+        } else {
+            markChangedAndSynchronize();
+        }
+    }
+
+    /**
+     * Returns whether the next non-final cooling checkpoint changes the
+     * client-visible tint, ambience, or emitted-light stage.
+     */
+    static boolean requiresCoolingVisualSynchronization(int previousCoolingTicks) {
+        MoldCooling.requireValidElapsedTicks(previousCoolingTicks);
+        if (MoldCooling.completesOnNextUpdate(previousCoolingTicks)) {
+            return false;
+        }
+        return MoldCooling.visualStage(previousCoolingTicks)
+                != MoldCooling.visualStage(MoldCooling.advanceElapsedTicks(previousCoolingTicks));
     }
 
     @Override
@@ -184,10 +222,10 @@ final class TrmsMoldBlockEntity extends BlockEntity {
     }
 
     /** Keeps the light-emission blockstate as a derived projection of BE material and cooling data. */
-    private void synchronizeFilledBlockState(ServerLevel serverLevel) {
+    private boolean synchronizeFilledBlockState(ServerLevel serverLevel) {
         BlockState state = getBlockState();
         if (!state.is(TrmsContent.MOLD.block())) {
-            return;
+            return false;
         }
         boolean shouldBeFilled = fillMaterial.isPresent();
         int desiredCoolingStage = shouldBeFilled ? MoldCooling.visualStage(coolingTicks) : 0;
@@ -195,10 +233,11 @@ final class TrmsMoldBlockEntity extends BlockEntity {
                 .setValue(TrmsMoldBlock.FILLED, shouldBeFilled)
                 .setValue(TrmsMoldBlock.COOLING_STAGE, desiredCoolingStage);
         if (state != desiredState) {
-            serverLevel.setBlock(worldPosition,
-                    desiredState, Block.UPDATE_ALL);
+            boolean changed = serverLevel.setBlock(worldPosition, desiredState, Block.UPDATE_ALL);
             serverLevel.getLightEngine().checkBlock(worldPosition);
+            return changed;
         }
+        return false;
     }
 
     private void scheduleCoolingTick(ServerLevel serverLevel) {
@@ -214,8 +253,8 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         fillMaterial = Optional.empty();
         coolingTicks = 0;
         revision++;
-        synchronizeFilledBlockState(serverLevel);
-        setChanged();
+        boolean blockStateUpdateSent = synchronizeFilledBlockState(serverLevel);
+        markChangedAndSynchronizeIfNeeded(blockStateUpdateSent);
         Block.popResourceFromFace(serverLevel, worldPosition, net.minecraft.core.Direction.UP, weaponPart);
     }
 }

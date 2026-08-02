@@ -29,7 +29,9 @@ When the server marks a non-empty mold filled, the renderer covers its carved
 cells with a contiguous, visual-only molten surface. It sits slightly below the
 ceramic rim, removes internal shared faces, uses project-owned greyscale copies
 of the vanilla lava animations, and applies a stable copper, silver-iron, or
-gold tint. The server synchronizes accumulated cooling ticks in 20-tick increments.
+gold tint. The server persists accumulated cooling ticks in 20-tick increments
+and synchronizes them only when the client-visible cooling stage changes or
+the casting completes.
 The first 300 ticks keep emitted light at 15 and retain full tint and effects;
 from tick 300, derived visual stages lower emitted light to 1 and tint
 brightness to 35%, while client-local lava sparks, smoke, pop sounds, and

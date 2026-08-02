@@ -61,8 +61,10 @@ cell is changed or durability is consumed.
 
 The block entity persists `MoldFormat`, `Pattern`, `Revision`, optional
 placed-only `FillMaterial` ID, and accumulated `CoolingTicks`; it emits a
-standard block-entity update packet after every accepted carving, filling, or
-20-tick cooling update. A non-empty, unfilled mold accepts one
+standard block-entity update packet after every accepted carving, filling,
+client-visible cooling-stage change, or casting completion. It still persists
+cooling every 20 ticks, but the visually unchanged first fifteen seconds do not
+retransmit block-entity data. A non-empty, unfilled mold accepts one
 right-click with a copper, iron, or gold ingot without requiring a lodestone.
 Survival and adventure consume one ingot, while creative does not. Filling is one-way:
 it blocks further carving and refilling, starts at light level 15, and never
