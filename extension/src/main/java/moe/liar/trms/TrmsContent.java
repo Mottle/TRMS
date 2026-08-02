@@ -29,6 +29,8 @@ final class TrmsContent {
                             .mapColor(MapColor.TERRACOTTA_WHITE)
                             .strength(1.25F, 6.0F)
                             .sound(SoundType.DECORATED_POT)
+                            .lightLevel(state -> TrmsMoldFillMaterials.lightLevel(
+                                    state.getValue(TrmsMoldBlock.FILLED)))
                             .noOcclusion())
                     .item(properties -> properties.stacksTo(1))
                     .blockEntity(TrmsMoldBlockEntity::new)

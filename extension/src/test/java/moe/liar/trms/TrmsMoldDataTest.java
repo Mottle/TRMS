@@ -5,6 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.mojang.serialization.JsonOps;
+import java.util.Optional;
+import moe.liar.trms.common.MoldFillMaterial;
 import moe.liar.trms.common.MoldPersistence;
 import net.minecraft.SharedConstants;
 import net.minecraft.core.RegistryAccess;
@@ -37,13 +39,14 @@ class TrmsMoldDataTest {
                 .carve(7, 7)
                 .carve(8, 8)
                 .carve(9, 8);
-        CompoundTag envelope = saveEnvelope(pattern, 3L);
+        CompoundTag envelope = saveEnvelope(pattern, 3L, Optional.empty());
         TrmsMoldData.State loaded = TrmsMoldData.load(TagValueInput.create(
                 ProblemReporter.DISCARDING, RegistryAccess.EMPTY, envelope));
         assertEquals(MoldPersistence.FORMAT_VERSION, envelope.getIntOr(MoldPersistence.FORMAT_KEY, -1));
         assertTrue(envelope.contains(MoldPersistence.PATTERN_KEY));
         assertEquals(pattern, loaded.pattern());
         assertEquals(3L, loaded.revision());
+        assertTrue(loaded.fillMaterial().isEmpty());
 
         DataComponentMap.Builder droppedComponents = DataComponentMap.builder();
         TrmsMoldData.storeItemPattern(droppedComponents, testPatternComponent, loaded.pattern());
@@ -68,7 +71,8 @@ class TrmsMoldDataTest {
 
     @Test
     void persistenceRejectsMissingPatternUnsupportedFormatAndNegativeRevision() {
-        CompoundTag valid = saveEnvelope(TrmsMoldPattern.empty().carve(3, 3), 1L);
+        CompoundTag valid = saveEnvelope(
+                TrmsMoldPattern.empty().carve(3, 3), 1L, Optional.empty());
 
         CompoundTag missingPattern = valid.copy();
         missingPattern.remove(MoldPersistence.PATTERN_KEY);
@@ -87,21 +91,56 @@ class TrmsMoldDataTest {
     }
 
     @Test
+    void placedFillMaterialSurvivesPersistenceButIsNotAnItemComponent() {
+        TrmsMoldPattern pattern = TrmsMoldPattern.empty().carve(6, 6).carve(7, 6);
+        CompoundTag envelope = saveEnvelope(pattern, 9L, Optional.of(MoldFillMaterial.COPPER));
+
+        TrmsMoldData.State loaded = TrmsMoldData.load(TagValueInput.create(
+                ProblemReporter.DISCARDING, RegistryAccess.EMPTY, envelope));
+
+        assertEquals(MoldFillMaterial.COPPER, loaded.fillMaterial().orElseThrow());
+        assertEquals(MoldFillMaterial.COPPER.id(),
+                envelope.getStringOr(MoldPersistence.FILL_MATERIAL_KEY, ""));
+
+        DataComponentMap.Builder droppedComponents = DataComponentMap.builder();
+        TrmsMoldData.storeItemPattern(droppedComponents, testPatternComponent, loaded.pattern());
+        DataComponentMap dropped = droppedComponents.build();
+        assertEquals(pattern, dropped.get(testPatternComponent));
+    }
+
+    @Test
+    void persistenceSupportsExtensibleMaterialIdsAndRejectsFilledEmptyMolds() {
+        MoldFillMaterial customMaterial = MoldFillMaterial.of("example:bronze");
+        CompoundTag customEnvelope = saveEnvelope(
+                TrmsMoldPattern.empty().carve(4, 4), 2L, Optional.of(customMaterial));
+        TrmsMoldData.State customLoaded = TrmsMoldData.load(TagValueInput.create(
+                ProblemReporter.DISCARDING, RegistryAccess.EMPTY, customEnvelope));
+        assertEquals(customMaterial, customLoaded.fillMaterial().orElseThrow());
+
+        CompoundTag impossibleEmptyFill = saveEnvelope(
+                TrmsMoldPattern.empty(), 1L, Optional.of(MoldFillMaterial.IRON));
+        assertThrows(IllegalStateException.class, () -> TrmsMoldData.load(
+                TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, impossibleEmptyFill)));
+    }
+
+    @Test
     void savingTheRealValueIoEnvelopeUsesTheProductionCodec() {
         TrmsMoldPattern pattern = TrmsMoldPattern.empty().carve(10, 10);
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        TrmsMoldData.save(output, pattern, 12L);
+        TrmsMoldData.save(output, pattern, 12L, Optional.of(MoldFillMaterial.IRON));
         CompoundTag tag = output.buildResult();
 
         TrmsMoldData.State decoded = TrmsMoldData.load(
                 TagValueInput.create(ProblemReporter.DISCARDING, RegistryAccess.EMPTY, tag));
         assertEquals(pattern, decoded.pattern());
         assertEquals(12L, decoded.revision());
+        assertEquals(MoldFillMaterial.IRON, decoded.fillMaterial().orElseThrow());
     }
 
-    private static CompoundTag saveEnvelope(TrmsMoldPattern pattern, long revision) {
+    private static CompoundTag saveEnvelope(TrmsMoldPattern pattern, long revision,
+                                            Optional<MoldFillMaterial> fillMaterial) {
         TagValueOutput output = TagValueOutput.createWithoutContext(ProblemReporter.DISCARDING);
-        TrmsMoldData.save(output, pattern, revision);
+        TrmsMoldData.save(output, pattern, revision, fillMaterial);
         return output.buildResult();
     }
 }
