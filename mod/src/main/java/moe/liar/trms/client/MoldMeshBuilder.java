@@ -23,6 +23,7 @@ import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.ao.EnhancedBlockModelLighter;
 import org.joml.Vector3f;
@@ -41,6 +42,23 @@ public final class MoldMeshBuilder {
             BLOCK_ATLAS_TEXTURE,
             Identifier.fromNamespaceAndPath("minecraft", "block/terracotta")
     );
+    /**
+     * Project-owned greyscale copies of the vanilla animated lava frames.
+     *
+     * <p>Vertex tinting is multiplicative. Applying a silver tint to the
+     * orange vanilla source therefore still produces orange. These neutral
+     * source frames let every fill material supply its actual hue while
+     * retaining Minecraft's lava animation cadence.</p>
+     */
+    public static final SpriteId MOLTEN_STILL_SPRITE = new SpriteId(
+            BLOCK_ATLAS_TEXTURE,
+            Identifier.fromNamespaceAndPath("trms", "block/molten_still")
+    );
+    public static final SpriteId MOLTEN_FLOW_SPRITE = new SpriteId(
+            BLOCK_ATLAS_TEXTURE,
+            Identifier.fromNamespaceAndPath("trms", "block/molten_flow")
+    );
+    static final int FULL_BRIGHT_LIGHT = 0x00F000F0;
     public static final org.joml.Vector3fc[] ITEM_EXTENTS = {
             new org.joml.Vector3f(-0.5f, -0.0625f, -0.5f),
             new org.joml.Vector3f(0.5f, 0.0625f, 0.5f)
@@ -98,12 +116,10 @@ public final class MoldMeshBuilder {
 
         private final boolean completeShell;
         private TextureAtlasSprite sprite;
-        private final Map<MoldPattern, Mesh> meshes = new LinkedHashMap<>(MAXIMUM_MESHES, 0.75F, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<MoldPattern, Mesh> eldest) {
-                return size() > MAXIMUM_MESHES;
-            }
-        };
+        private final Map<MoldPattern, Mesh> meshes = boundedMeshMap();
+        private TextureAtlasSprite fillTopSprite;
+        private TextureAtlasSprite fillSideSprite;
+        private final Map<MoldPattern, Mesh> fillMeshes = boundedMeshMap();
 
         public Cache(boolean completeShell) {
             this.completeShell = completeShell;
@@ -127,6 +143,29 @@ public final class MoldMeshBuilder {
                     pattern -> completeShell ? buildItem(pattern, sprite) : buildWorld(pattern, sprite));
         }
 
+        /** Returns contiguous visual fill geometry, cached independently of the ceramic shell. */
+        public Mesh getFill(MoldPattern pattern, TextureAtlasSprite topSprite, TextureAtlasSprite sideSprite) {
+            Objects.requireNonNull(pattern, "pattern");
+            Objects.requireNonNull(topSprite, "topSprite");
+            Objects.requireNonNull(sideSprite, "sideSprite");
+            if (topSprite != fillTopSprite || sideSprite != fillSideSprite) {
+                fillTopSprite = topSprite;
+                fillSideSprite = sideSprite;
+                fillMeshes.clear();
+            }
+            return fillMeshes.computeIfAbsent(pattern,
+                    nextPattern -> buildFill(nextPattern, fillTopSprite, fillSideSprite));
+        }
+
+        private static Map<MoldPattern, Mesh> boundedMeshMap() {
+            return new LinkedHashMap<>(MAXIMUM_MESHES, 0.75F, true) {
+                @Override
+                protected boolean removeEldestEntry(Map.Entry<MoldPattern, Mesh> eldest) {
+                    return size() > MAXIMUM_MESHES;
+                }
+            };
+        }
+
     }
 
     /** Immutable render-thread data: no pattern enumeration or quad construction occurs in submit. */
@@ -143,14 +182,21 @@ public final class MoldMeshBuilder {
                                 WorldLighting lighting) {
             collector.submitCustomGeometry(poseStack, renderType,
                     (pose, vertices) -> render(pose, vertices, light, OverlayTexture.NO_OVERLAY,
-                            1.0f / 16.0f, lighting));
+                            1.0f / 16.0f, lighting, 0xFFFFFFFF));
+        }
+
+        /** Submits a material fill with fixed level-15 block and sky light. */
+        public void submitFullBrightWorld(PoseStack poseStack, SubmitNodeCollector collector, int color) {
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, FULL_BRIGHT_LIGHT, OverlayTexture.NO_OVERLAY,
+                            1.0f / 16.0f, null, color));
         }
 
         public void submitItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
             poseStack.pushPose();
             centerItemGeometry(poseStack);
             collector.submitCustomGeometry(poseStack, renderType,
-                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null));
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, 0xFFFFFFFF));
             poseStack.popPose();
         }
 
@@ -166,17 +212,17 @@ public final class MoldMeshBuilder {
             // already-correct spin center.
             rotateYAround(poseStack, 180.0F, 0.5F, 0.5F);
             collector.submitCustomGeometry(poseStack, renderType,
-                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null));
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, 0xFFFFFFFF));
             poseStack.popPose();
         }
 
         private void render(PoseStack.Pose pose, VertexConsumer vertices, int light, int overlay, float scale,
-                            WorldLighting lighting) {
+                            WorldLighting lighting, int tint) {
             for (int faceIndex = 0; faceIndex < faces.size(); faceIndex++) {
                 Face face = faces.get(faceIndex);
                 for (int index = 0; index < 4; index++) {
                     int vertexLight = lighting == null ? light : lighting.light(faceIndex, index);
-                    int vertexColor = lighting == null ? 0xFFFFFFFF : lighting.color(faceIndex, index);
+                    int vertexColor = lighting == null ? tint : lighting.color(faceIndex, index);
                     face.vertex(vertices, pose, index, overlay, vertexLight, vertexColor, scale);
                 }
             }
@@ -207,7 +253,11 @@ public final class MoldMeshBuilder {
             float u = switch (index) { case 0 -> u0; case 1 -> u1; case 2 -> u2; default -> u3; };
             float v = switch (index) { case 0 -> v0; case 1 -> v1; case 2 -> v2; default -> v3; };
             vertices.addVertex(pose, x * scale, y * scale, z * scale)
-                    .setColor(color)
+                    // The four-channel overload makes the ARGB convention
+                    // explicit at this renderer boundary. It also prevents a
+                    // future packed-colour API change from silently dropping
+                    // the material tint.
+                    .setColor(ARGB.red(color), ARGB.green(color), ARGB.blue(color), ARGB.alpha(color))
                     .setUv(u, v)
                     .setOverlay(overlay)
                     .setUv2(light & 0xFFFF, light >>> 16)
@@ -324,6 +374,17 @@ public final class MoldMeshBuilder {
             faces.add(face(quad, u0, u1, v0, v1));
         }
         return new Mesh(faces, renderType);
+    }
+
+    private static Mesh buildFill(MoldPattern pattern, TextureAtlasSprite topSprite,
+                                  TextureAtlasSprite sideSprite) {
+        List<MoldMeshTopology.Quad> topology = MoldMeshTopology.buildFill(pattern);
+        List<Face> faces = new ArrayList<>(topology.size());
+        for (MoldMeshTopology.Quad quad : topology) {
+            TextureAtlasSprite sprite = quad.ny() > 0.0F ? topSprite : sideSprite;
+            faces.add(face(quad, sprite.getU0(), sprite.getU1(), sprite.getV0(), sprite.getV1()));
+        }
+        return new Mesh(faces, RenderTypes.entityTranslucent(topSprite.atlasLocation()));
     }
 
     private static Face face(MoldMeshTopology.Quad quad, float spriteU0, float spriteU1,

@@ -42,6 +42,11 @@ public final class TrmsClientMod {
                     .mapColor(MapColor.TERRACOTTA_WHITE)
                     .sound(SoundType.DECORATED_POT)
                     .strength(1.25F, 6.0F)
+                    // Keep the client-side registry definition aligned with the
+                    // Extension's filled-state light emission. Server light
+                    // packets remain authoritative, while this also keeps local
+                    // light recalculation and state-dependent rendering coherent.
+                    .lightLevel(state -> state.getValue(MoldBlock.FILLED) ? 15 : 0)
                     .noOcclusion()
     );
     public static final DeferredHolder<Item, BlockItem> MOLD_ITEM = ITEMS.registerItem(

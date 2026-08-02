@@ -13,6 +13,12 @@ import net.minecraft.core.Direction;
  */
 public final class MoldMeshTopology {
     private static final float MODEL_WIDTH = 16.0F;
+    /** The visual fill sits one pixel above the ceramic base and visibly below the two-pixel rim. */
+    static final float FILL_BASE_Y = 1.0F;
+    /** A quarter model pixel of headroom makes a filled mold look intentionally not quite full. */
+    static final float FILL_SURFACE_Y = 1.75F;
+    /** Keeps translucent fill walls off the solid ceramic cavity walls. */
+    static final float FILL_SIDE_INSET = 0.001F;
 
     private MoldMeshTopology() {}
 
@@ -22,6 +28,42 @@ public final class MoldMeshTopology {
             addBottomAndRim(quads, pattern);
         }
         addInterior(quads, pattern);
+        return List.copyOf(quads);
+    }
+
+    /**
+     * Builds the visual-only material occupying every carved cell.
+     *
+     * <p>Adjacent filled cells share a boundary, so only the outside side of
+     * each connected component is emitted. The lower face is intentionally
+     * omitted because the fixed ceramic base is directly below it.</p>
+     */
+    public static List<Quad> buildFill(MoldPattern pattern) {
+        List<Quad> quads = new ArrayList<>();
+        for (int z = 1; z <= MoldPattern.INNER_SIZE; z++) {
+            for (int x = 1; x <= MoldPattern.INNER_SIZE; x++) {
+                if (!pattern.isCarved(x, z)) {
+                    continue;
+                }
+                top(quads, x, z, x + 1, z + 1, FILL_SURFACE_Y);
+                if (!pattern.isCarved(x - 1, z)) {
+                    west(quads, x + FILL_SIDE_INSET, z + FILL_SIDE_INSET,
+                            1.0F - 2.0F * FILL_SIDE_INSET, FILL_BASE_Y, FILL_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x + 1, z)) {
+                    east(quads, x + 1 - FILL_SIDE_INSET, z + FILL_SIDE_INSET,
+                            1.0F - 2.0F * FILL_SIDE_INSET, FILL_BASE_Y, FILL_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x, z - 1)) {
+                    north(quads, x + FILL_SIDE_INSET, z + FILL_SIDE_INSET,
+                            1.0F - 2.0F * FILL_SIDE_INSET, FILL_BASE_Y, FILL_SURFACE_Y);
+                }
+                if (!pattern.isCarved(x, z + 1)) {
+                    south(quads, x + FILL_SIDE_INSET, z + 1 - FILL_SIDE_INSET,
+                            1.0F - 2.0F * FILL_SIDE_INSET, FILL_BASE_Y, FILL_SURFACE_Y);
+                }
+            }
+        }
         return List.copyOf(quads);
     }
 
@@ -123,30 +165,30 @@ public final class MoldMeshTopology {
         }
     }
 
-    private static void top(List<Quad> q, int x0, int z0, int x1, int z1, int y) {
+    private static void top(List<Quad> q, float x0, float z0, float x1, float z1, float y) {
         // Keep the vertex order identical to FaceInfo.UP.  Custom geometry
         // receives four unindexed vertices, so the canonical order is needed
         // for the renderer to form both triangles of a quad consistently.
         q.add(new Quad(x0, y, z0, x0, y, z1, x1, y, z1, x1, y, z0, 0, 1, 0));
     }
 
-    private static void bottom(List<Quad> q, int x0, int z0, int x1, int z1, int y) {
+    private static void bottom(List<Quad> q, float x0, float z0, float x1, float z1, float y) {
         q.add(new Quad(x0, y, z1, x0, y, z0, x1, y, z0, x1, y, z1, 0, -1, 0));
     }
 
-    private static void west(List<Quad> q, int x, int z, int width, int y0, int y1) {
+    private static void west(List<Quad> q, float x, float z, float width, float y0, float y1) {
         q.add(new Quad(x, y1, z, x, y0, z, x, y0, z + width, x, y1, z + width, -1, 0, 0));
     }
 
-    private static void east(List<Quad> q, int x, int z, int width, int y0, int y1) {
+    private static void east(List<Quad> q, float x, float z, float width, float y0, float y1) {
         q.add(new Quad(x, y1, z + width, x, y0, z + width, x, y0, z, x, y1, z, 1, 0, 0));
     }
 
-    private static void north(List<Quad> q, int x, int z, int width, int y0, int y1) {
+    private static void north(List<Quad> q, float x, float z, float width, float y0, float y1) {
         q.add(new Quad(x + width, y1, z, x + width, y0, z, x, y0, z, x, y1, z, 0, 0, -1));
     }
 
-    private static void south(List<Quad> q, int x, int z, int width, int y0, int y1) {
+    private static void south(List<Quad> q, float x, float z, float width, float y0, float y1) {
         q.add(new Quad(x, y1, z, x, y0, z, x + width, y0, z, x + width, y1, z, 0, 0, 1));
     }
 

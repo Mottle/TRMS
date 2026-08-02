@@ -1,17 +1,32 @@
 {
   "variants": {
-    "facing=south": {
+    "facing=south,filled=false": {
       "model": "trms:block/mold"
     },
-    "facing=west": {
+    "facing=south,filled=true": {
+      "model": "trms:block/mold"
+    },
+    "facing=west,filled=false": {
       "model": "trms:block/mold",
       "y": 90
     },
-    "facing=north": {
+    "facing=west,filled=true": {
+      "model": "trms:block/mold",
+      "y": 90
+    },
+    "facing=north,filled=false": {
       "model": "trms:block/mold",
       "y": 180
     },
-    "facing=east": {
+    "facing=north,filled=true": {
+      "model": "trms:block/mold",
+      "y": 180
+    },
+    "facing=east,filled=false": {
+      "model": "trms:block/mold",
+      "y": 270
+    },
+    "facing=east,filled=true": {
       "model": "trms:block/mold",
       "y": 270
     }

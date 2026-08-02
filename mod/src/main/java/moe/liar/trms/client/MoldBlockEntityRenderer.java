@@ -40,6 +40,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         Direction facing = MoldBlock.facing(blockEntity.getBlockState());
         state.pattern = pattern;
         state.revision = blockEntity.revision();
+        state.fillMaterial = blockEntity.fillMaterial();
         state.facing = facing;
         state.showCarvingGuide = shouldShowCarvingGuide(blockEntity);
         state.carvingGuide = MoldCarvingGuide.Layout.EMPTY;
@@ -86,6 +87,15 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         // presentation space as the hand-held and dropped mold item.
         MoldMeshBuilder.rotateWorldPresentation(poseStack, state.facing);
         mesh.submitWorld(poseStack, collector, state.lightCoords, state.worldLighting);
+        MoldFillVisual fillVisual = MoldFillVisual.forMaterial(state.fillMaterial);
+        if (fillVisual != null && state.pattern.carvedCount() > 0) {
+            MoldMeshBuilder.Mesh fillMesh = meshCache.getFill(
+                    state.pattern,
+                    sprites.get(MoldMeshBuilder.MOLTEN_STILL_SPRITE),
+                    sprites.get(MoldMeshBuilder.MOLTEN_FLOW_SPRITE)
+            );
+            fillMesh.submitFullBrightWorld(poseStack, collector, fillVisual.color());
+        }
         if (state.showCarvingGuide) {
             MoldCarvingGuide.submit(poseStack, collector, state.carvingGuide,
                     state.hoveredCarvingCell, state.hoveredCarvingAlpha);
@@ -94,6 +104,9 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
     }
 
     private static boolean shouldShowCarvingGuide(MoldBlockEntity mold) {
+        if (mold.isFilled()) {
+            return false;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
         if (player == null

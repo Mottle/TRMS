@@ -19,6 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.block.state.properties.BooleanProperty;
 import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -27,10 +28,14 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 public final class MoldBlock extends Block implements EntityBlock {
     public static final VoxelShape FULL_THIN_SLAB = Block.box(0, 0, 0, 16, 2, 16);
     public static final Property<Direction> FACING = BlockStateProperties.HORIZONTAL_FACING;
+    /** Mirrors the Extension's light-emitting filled state; the BE owns the material ID. */
+    public static final BooleanProperty FILLED = BooleanProperty.create("filled");
 
     public MoldBlock(BlockBehaviour.Properties properties) {
         super(properties);
-        registerDefaultState(defaultBlockState().setValue(FACING, Direction.NORTH));
+        registerDefaultState(defaultBlockState()
+                .setValue(FACING, Direction.NORTH)
+                .setValue(FILLED, false));
     }
 
     /** Mirrors the Extension placement state so the client predicts the same orientation. */
@@ -50,7 +55,7 @@ public final class MoldBlock extends Block implements EntityBlock {
 
     @Override
     protected void createBlockStateDefinition(StateDefinition.Builder<Block, BlockState> builder) {
-        builder.add(FACING);
+        builder.add(FACING, FILLED);
     }
 
     @Override
@@ -76,6 +81,19 @@ public final class MoldBlock extends Block implements EntityBlock {
     @Override
     protected VoxelShape getCollisionShape(BlockState state, BlockGetter level, BlockPos pos, CollisionContext context) {
         return FULL_THIN_SLAB;
+    }
+
+    @Override
+    public void animateTick(BlockState state, net.minecraft.world.level.Level level, BlockPos pos, RandomSource random) {
+        super.animateTick(state, level, pos, random);
+        // This mod is client-only, but retain the logical-side guard so these
+        // cosmetic effects can never become a world mutation if reused.
+        if (!level.isClientSide() || !state.getValue(FILLED)) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof MoldBlockEntity mold && mold.isFilled()) {
+            MoldMoltenEffects.animate(level, pos, mold.pattern(), facing(state), random);
+        }
     }
 
     @Override

@@ -37,6 +37,56 @@ class MoldMeshTopologyTest {
     }
 
     @Test
+    void fillTopologyIsEmptyUntilTheMoldHasACarvedCell() {
+        assertTrue(MoldMeshTopology.buildFill(MoldPattern.EMPTY).isEmpty());
+    }
+
+    @Test
+    void fillTopologyCoversOneCarvedCellWithOneTopAndFourFlowingSides() {
+        List<MoldMeshTopology.Quad> quads = MoldMeshTopology.buildFill(carve(4, 4));
+
+        assertEquals(5, quads.size());
+        assertEquals(1, countTopFaces(quads));
+        assertEquals(4, countVerticalFaces(quads));
+        assertTrue(quads.stream().filter(quad -> quad.ny() > 0.0F)
+                .allMatch(quad -> minY(quad) == MoldMeshTopology.FILL_SURFACE_Y
+                        && maxY(quad) == MoldMeshTopology.FILL_SURFACE_Y));
+        assertTrue(quads.stream().filter(quad -> quad.ny() == 0.0F)
+                .allMatch(quad -> minY(quad) == MoldMeshTopology.FILL_BASE_Y
+                        && maxY(quad) == MoldMeshTopology.FILL_SURFACE_Y));
+    }
+
+    @Test
+    void fillSurfaceLeavesVisibleHeadroomBelowTheCeramicRim() {
+        assertEquals(1.75F, MoldMeshTopology.FILL_SURFACE_Y);
+        assertTrue(MoldMeshTopology.FILL_SURFACE_Y < 2.0F);
+        assertEquals(0.25F, 2.0F - MoldMeshTopology.FILL_SURFACE_Y);
+    }
+
+    @Test
+    void fillSideWallsAreInsetFromTheSolidCeramicWalls() {
+        List<MoldMeshTopology.Quad> quads = MoldMeshTopology.buildFill(carve(4, 4));
+
+        assertFalse(quads.stream()
+                .filter(quad -> quad.ny() == 0.0F)
+                .anyMatch(quad -> quad.x0() == 4.0F || quad.x0() == 5.0F
+                        || quad.z0() == 4.0F || quad.z0() == 5.0F));
+    }
+
+    @Test
+    void adjacentFillCellsRemoveTheirSharedInternalSide() {
+        List<MoldMeshTopology.Quad> quads = MoldMeshTopology.buildFill(carve(4, 4, 5, 4));
+
+        assertEquals(8, quads.size());
+        assertEquals(2, countTopFaces(quads));
+        assertEquals(6, countVerticalFaces(quads));
+        assertFalse(quads.stream().anyMatch(quad -> quad.ny() == 0.0F
+                && quad.x0() == 5.0F && quad.x1() == 5.0F
+                && quad.x2() == 5.0F && quad.x3() == 5.0F
+                && minZ(quad) == 4.0F && maxZ(quad) == 5.0F));
+    }
+
+    @Test
     void orthogonallyAdjacentHolesDoNotLeaveASharedInteriorWall() {
         List<MoldMeshTopology.Quad> quads = MoldMeshTopology.build(carve(4, 4, 5, 4), false);
         assertEquals(200, quads.size());
