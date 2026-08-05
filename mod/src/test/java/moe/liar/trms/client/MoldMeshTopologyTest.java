@@ -54,20 +54,30 @@ class MoldMeshTopologyTest {
     }
 
     @Test
-    void lightingProxiesLiftOnlyRecessedHorizontalSurfacesToTheRimPlane() {
+    void lightingProxiesLiftAllInteriorHorizontalSurfacesJustAboveTheRimPlane() {
         MoldPattern pattern = carve(4, 4);
         MoldMeshTopology.Quad floor = MoldMeshTopology.buildWorld(pattern).stream()
                 .filter(quad -> quad.ny() > 0.0F && minY(quad) == MoldMeshTopology.CAVITY_FLOOR_Y)
                 .findFirst().orElseThrow();
         MoldMeshTopology.Quad fillTop = MoldMeshTopology.buildFill(pattern).stream()
                 .filter(quad -> quad.ny() > 0.0F).findFirst().orElseThrow();
+        MoldMeshTopology.Quad solidTop = MoldMeshTopology.buildWorld(pattern).stream()
+                .filter(quad -> quad.ny() > 0.0F && minY(quad) == MoldMeshTopology.RIM_SURFACE_Y)
+                .findFirst().orElseThrow();
         MoldMeshTopology.Quad wall = MoldMeshTopology.buildWorld(pattern).stream()
                 .filter(quad -> quad.ny() == 0.0F).findFirst().orElseThrow();
 
-        assertTopHeight(MoldMeshBuilder.lightingProxy(floor), MoldMeshTopology.RIM_SURFACE_Y);
-        assertTopHeight(MoldMeshBuilder.lightingProxy(fillTop), MoldMeshTopology.RIM_SURFACE_Y);
+        float expectedSampleHeight = MoldMeshTopology.RIM_SURFACE_Y + 0.01F;
+        assertTopHeight(MoldMeshBuilder.lightingProxy(floor), expectedSampleHeight);
+        assertTopHeight(MoldMeshBuilder.lightingProxy(fillTop), expectedSampleHeight);
+        assertTopHeight(MoldMeshBuilder.lightingProxy(solidTop), expectedSampleHeight);
+        assertTopHeight(MoldMeshBuilder.lightingLightProxy(floor), MoldMeshTopology.RIM_SURFACE_Y);
+        assertTopHeight(MoldMeshBuilder.lightingLightProxy(fillTop), MoldMeshTopology.RIM_SURFACE_Y);
+        assertTopHeight(MoldMeshBuilder.lightingLightProxy(solidTop), MoldMeshTopology.RIM_SURFACE_Y);
         assertSame(wall, MoldMeshBuilder.lightingProxy(wall),
                 "vertical cavity walls retain their physical directional shadowing");
+        assertSame(wall, MoldMeshBuilder.lightingLightProxy(wall),
+                "vertical cavity light samples retain their physical directional shadowing");
     }
 
     @Test

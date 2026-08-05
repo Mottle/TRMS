@@ -42,6 +42,10 @@ public final class MoldMeshBuilder {
             BLOCK_ATLAS_TEXTURE,
             Identifier.fromNamespaceAndPath("minecraft", "block/terracotta")
     );
+    public static final SpriteId CLAY_SPRITE = new SpriteId(
+            BLOCK_ATLAS_TEXTURE,
+            Identifier.fromNamespaceAndPath("minecraft", "block/clay")
+    );
     /**
      * Project-owned greyscale copies of the vanilla animated lava frames.
      *
@@ -144,6 +148,10 @@ public final class MoldMeshBuilder {
 
     public static TextureAtlasSprite currentTerracottaSprite() {
         return Minecraft.getInstance().getAtlasManager().get(TERRACOTTA_SPRITE);
+    }
+
+    public static TextureAtlasSprite currentClaySprite() {
+        return Minecraft.getInstance().getAtlasManager().get(CLAY_SPRITE);
     }
 
     public static TextureAtlasSprite currentSolidMetalSprite() {
@@ -568,12 +576,15 @@ public final class MoldMeshBuilder {
     private static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                       BlockState blockState, List<MoldMeshTopology.Quad> sourceQuads,
                                                       TextureAtlasSprite sprite, Direction facing) {
-        List<MoldMeshTopology.Quad> quads = new ArrayList<>(sourceQuads.size());
+        List<MoldMeshTopology.Quad> colorQuads = new ArrayList<>(sourceQuads.size());
+        List<MoldMeshTopology.Quad> lightQuads = new ArrayList<>(sourceQuads.size());
         for (MoldMeshTopology.Quad quad : sourceQuads) {
-            quads.add(lightingProxy(MoldMeshTopology.rotateForPresentation(quad, facing)));
+            MoldMeshTopology.Quad oriented = MoldMeshTopology.rotateForPresentation(quad, facing);
+            colorQuads.add(lightingProxy(oriented));
+            lightQuads.add(lightingLightProxy(oriented));
         }
-        int[] colors = new int[quads.size() * 4];
-        int[] lights = new int[quads.size() * 4];
+        int[] colors = new int[colorQuads.size() * 4];
+        int[] lights = new int[lightQuads.size() * 4];
         BlockModelLighter lighter = EnhancedBlockModelLighter.newInstance();
         lighter.reset();
         BakedQuad.MaterialInfo material = new BakedQuad.MaterialInfo(
@@ -586,38 +597,70 @@ public final class MoldMeshBuilder {
                 true
         );
 
-        for (int faceIndex = 0; faceIndex < quads.size(); faceIndex++) {
-            BakedQuad quad = bakedQuad(quads.get(faceIndex), material);
-            QuadInstance sampled = new QuadInstance();
-            lighter.prepareQuadAmbientOcclusion(level, blockState, position, quad, sampled);
+        for (int faceIndex = 0; faceIndex < colorQuads.size(); faceIndex++) {
+            BakedQuad colorQuad = bakedQuad(colorQuads.get(faceIndex), material);
+            BakedQuad lightQuad = bakedQuad(lightQuads.get(faceIndex), material);
+            QuadInstance sampledColor = new QuadInstance();
+            QuadInstance sampledLight = new QuadInstance();
+            // AO colour is sampled just above the collision shape so dynamic
+            // interior pixels match the static rim. Packed block/sky light is
+            // sampled on the actual rim plane so neighboring blocks continue
+            // to occlude sunlight exactly like vanilla block geometry.
+            lighter.prepareQuadAmbientOcclusion(level, blockState, position, colorQuad, sampledColor);
+            lighter.prepareQuadAmbientOcclusion(level, blockState, position, lightQuad, sampledLight);
             for (int vertexIndex = 0; vertexIndex < 4; vertexIndex++) {
                 int offset = faceIndex * 4 + vertexIndex;
-                colors[offset] = sampled.getColor(vertexIndex);
-                lights[offset] = sampled.getLightCoords(vertexIndex);
+                colors[offset] = sampledColor.getColor(vertexIndex);
+                lights[offset] = sampledLight.getLightCoords(vertexIndex);
             }
         }
         return new WorldLighting(colors, lights);
     }
 
     /**
-     * Samples recessed horizontal surfaces from the rim-height light plane.
+     * Samples horizontal surfaces just above the rim-height light plane.
      *
      * <p>A mold uses one two-pixel-tall collision shape. Asking vanilla AO to
      * light a visible top face at {@code y=1} or {@code y=1.75} therefore
      * treats it as if it were hidden inside a full slab, even though the
-     * ceramic rim leaves it visible. Lifting only the lighting proxy preserves
-     * the rendered depth and real side-wall shading while matching the outer
-     * rim's top-surface light.</p>
+     * ceramic rim leaves it visible. The same boundary issue applies to the
+     * dynamic solid pixels at exactly {@code y=2}: the custom BakedQuad path
+     * can still classify that face as being inside the collision shape. Lift
+     * every horizontal interior sample by a tiny epsilon so the inner pixels,
+     * carved floors, molten surfaces, and static rim all use the same top-plane
+     * light. The rendered geometry is unchanged; only the sampling proxy moves.
+     * Vertical cavity walls retain their physical directional shadowing.</p>
      */
     static MoldMeshTopology.Quad lightingProxy(MoldMeshTopology.Quad quad) {
-        if (quad.ny() <= 0.0F || quad.y0() >= MoldMeshTopology.RIM_SURFACE_Y) {
+        if (quad.ny() <= 0.0F || quad.y0() > MoldMeshTopology.RIM_SURFACE_Y) {
             return quad;
         }
+        float sampleY = MoldMeshTopology.RIM_SURFACE_Y + 0.01F;
+        return withTopHeight(quad, sampleY);
+    }
+
+    /**
+     * Returns the packed-light sampling proxy on the actual rim plane.
+     *
+     * <p>This intentionally differs from {@link #lightingProxy}: moving a
+     * light sample above the collision shape can move it into an unoccluded
+     * air cell and incorrectly restore full daylight beneath a neighboring
+     * block. Keeping the light probe at the real top plane preserves vanilla
+     * sky/block-light occlusion while the color probe handles AO separately.</p>
+     */
+    static MoldMeshTopology.Quad lightingLightProxy(MoldMeshTopology.Quad quad) {
+        if (quad.ny() <= 0.0F || quad.y0() > MoldMeshTopology.RIM_SURFACE_Y) {
+            return quad;
+        }
+        return withTopHeight(quad, MoldMeshTopology.RIM_SURFACE_Y);
+    }
+
+    private static MoldMeshTopology.Quad withTopHeight(MoldMeshTopology.Quad quad, float y) {
         return new MoldMeshTopology.Quad(
-                quad.x0(), MoldMeshTopology.RIM_SURFACE_Y, quad.z0(),
-                quad.x1(), MoldMeshTopology.RIM_SURFACE_Y, quad.z1(),
-                quad.x2(), MoldMeshTopology.RIM_SURFACE_Y, quad.z2(),
-                quad.x3(), MoldMeshTopology.RIM_SURFACE_Y, quad.z3(),
+                quad.x0(), y, quad.z0(),
+                quad.x1(), y, quad.z1(),
+                quad.x2(), y, quad.z2(),
+                quad.x3(), y, quad.z3(),
                 quad.nx(), quad.ny(), quad.nz()
         );
     }
