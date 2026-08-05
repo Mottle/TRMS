@@ -149,6 +149,22 @@ class MoldCarvingGuideTest {
         assertTrue(trough >= 92 && peak <= 224);
     }
 
+    @Test
+    void frontArrowIsFlatOutsideAndPointsTowardTheCanonicalFront() {
+        MoldCarvingGuide.FrontArrow arrow = MoldCarvingGuide.frontArrow();
+
+        assertEquals(4.0F / 16.0F, arrow.baseRightX() - arrow.baseLeftX());
+        assertEquals(0.0F, arrow.baseLeftZ() - arrow.baseRightZ());
+        assertEquals(8.0F / 16.0F, arrow.tipX());
+        assertTrue(arrow.baseLeftZ() > 1.0F);
+        assertTrue(arrow.tipZ() > arrow.baseLeftZ());
+        assertEquals(2.0F / 16.0F, arrow.tipZ() - arrow.baseLeftZ());
+        assertTrue(arrow.tipZ() - arrow.baseLeftZ() < arrow.baseRightX() - arrow.baseLeftX());
+        assertEquals(2.0F / 16.0F + 0.002F, arrow.tipY());
+        assertEquals(arrow.baseLeftY(), arrow.baseRightY());
+        assertEquals(arrow.baseLeftY(), arrow.tipY());
+    }
+
     private static MoldCarvingGuide.Cell presentedCell(int x, int z, Direction facing) {
         return switch (facing) {
             case SOUTH -> new MoldCarvingGuide.Cell(x, z);

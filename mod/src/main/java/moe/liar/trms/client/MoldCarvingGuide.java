@@ -27,21 +27,43 @@ final class MoldCarvingGuide {
     private static final float HOVER_FILL_Y = 2.0F / 16.0F + 0.0005F;
     private static final float HOVER_FILL_INSET = 0.003F;
     private static final float LINE_WIDTH = 5.0F;
+    private static final float FRONT_ARROW_BASE_MIN_X = 6.0F / 16.0F;
+    private static final float FRONT_ARROW_BASE_MAX_X = 10.0F / 16.0F;
+    private static final float FRONT_ARROW_BASE_Z = 1.0F + 1.0F / 16.0F;
+    private static final float FRONT_ARROW_TIP_Z = 1.0F + 3.0F / 16.0F;
+    private static final float FRONT_ARROW_Y = 2.0F / 16.0F + 0.002F;
+    private static final int FRONT_ARROW_ALPHA = 128;
+    private static final FrontArrow FRONT_ARROW = new FrontArrow(
+            FRONT_ARROW_BASE_MIN_X, FRONT_ARROW_Y, FRONT_ARROW_BASE_Z,
+            FRONT_ARROW_BASE_MAX_X, FRONT_ARROW_Y, FRONT_ARROW_BASE_Z,
+            8.0F / 16.0F, FRONT_ARROW_Y, FRONT_ARROW_TIP_Z);
     private MoldCarvingGuide() {
     }
 
     static void submit(PoseStack poseStack, SubmitNodeCollector collector, Layout layout,
                        @Nullable Cell hoveredCell, int hoveredAlpha) {
         if (!layout.carvedCells().isEmpty()) {
-            collector.submitCustomGeometry(poseStack, RenderTypes.lightning(),
+            collector.submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
                     layout::submitCarvedFills);
         }
         if (hoveredCell != null) {
-            collector.submitCustomGeometry(poseStack, RenderTypes.lightning(),
+            collector.submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
                     (pose, vertices) -> hoveredCell.submitHoverFill(pose, vertices, hoveredAlpha));
         }
         collector.submitCustomGeometry(poseStack, RenderTypes.lines(),
                 (pose, vertices) -> layout.lines().forEach(line -> line.submit(pose, vertices)));
+    }
+
+    /** Submits a top-surface arrow in canonical south-facing space. */
+    static void submitFrontArrow(PoseStack poseStack, SubmitNodeCollector collector) {
+        // The arrow submits exactly three vertices. lightning uses a QUADS
+        // vertex mode in 26.1.2, so an incomplete batch is silently dropped;
+        // debugTriangleFan is the matching translucent triangle pipeline.
+        collector.submitCustomGeometry(poseStack, RenderTypes.debugTriangleFan(), FRONT_ARROW::submit);
+    }
+
+    static FrontArrow frontArrow() {
+        return FRONT_ARROW;
     }
 
     /**
@@ -249,5 +271,23 @@ final class MoldCarvingGuide {
 
     /** Direction consumed by the vanilla line shader to expand a line in screen space. */
     record LineDirection(float x, float y, float z) {
+    }
+
+    /** A short, flat translucent triangle outside the canonical front (+Z). */
+    record FrontArrow(float baseLeftX, float baseLeftY, float baseLeftZ,
+                      float baseRightX, float baseRightY, float baseRightZ,
+                      float tipX, float tipY, float tipZ) {
+        private void submit(PoseStack.Pose pose, VertexConsumer vertices) {
+            vertex(pose, vertices, baseLeftX, baseLeftY, baseLeftZ);
+            vertex(pose, vertices, tipX, tipY, tipZ);
+            vertex(pose, vertices, baseRightX, baseRightY, baseRightZ);
+        }
+
+        private static void vertex(PoseStack.Pose pose, VertexConsumer vertices,
+                                   float x, float y, float z) {
+            vertices.addVertex(pose, x, y, z)
+                    .setColor(64, 255, 96, FRONT_ARROW_ALPHA)
+                    .setNormal(pose, 0.0F, 1.0F, 0.0F);
+        }
     }
 }

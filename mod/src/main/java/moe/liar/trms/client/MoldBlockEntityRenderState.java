@@ -15,6 +15,7 @@ public final class MoldBlockEntityRenderState extends BlockEntityRenderState {
     public MoldMeshBuilder.WorldLighting worldLighting;
     public MoldMeshBuilder.WorldLighting fillWorldLighting;
     public Direction facing = Direction.NORTH;
+    public boolean showFrontArrow;
     public boolean showCarvingGuide;
     MoldCarvingGuide.Layout carvingGuide = MoldCarvingGuide.Layout.EMPTY;
     MoldCarvingGuide.Cell hoveredCarvingCell;

@@ -13,6 +13,7 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.core.Direction;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
@@ -44,6 +45,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         state.coolingTicks = blockEntity.coolingTicks();
         state.isBlank = blockEntity.isBlank();
         state.facing = facing;
+        state.showFrontArrow = shouldShowFrontArrow(blockEntity);
         state.showCarvingGuide = shouldShowCarvingGuide(blockEntity);
         state.carvingGuide = MoldCarvingGuide.Layout.EMPTY;
         if (state.showCarvingGuide) {
@@ -123,7 +125,27 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
             MoldCarvingGuide.submit(poseStack, collector, state.carvingGuide,
                     state.hoveredCarvingCell, state.hoveredCarvingAlpha);
         }
+        if (state.showFrontArrow) {
+            MoldCarvingGuide.submitFrontArrow(poseStack, collector);
+        }
         poseStack.popPose();
+    }
+
+    private static boolean shouldShowFrontArrow(MoldBlockEntity mold) {
+        Minecraft minecraft = Minecraft.getInstance();
+        LocalPlayer player = minecraft.player;
+        if (player == null
+                || (!player.getMainHandItem().is(ItemTags.PICKAXES)
+                && !player.getOffhandItem().is(ItemTags.PICKAXES))) {
+            return false;
+        }
+        if (!(minecraft.hitResult instanceof BlockHitResult hit)
+                || hit.getType() != HitResult.Type.BLOCK
+                || !hit.getBlockPos().equals(mold.getBlockPos())) {
+            return false;
+        }
+        BlockState state = mold.getBlockState();
+        return state.is(TrmsClientMod.MOLD.get()) || state.is(TrmsClientMod.MOLD_BLANK.get());
     }
 
     private static boolean shouldShowCarvingGuide(MoldBlockEntity mold) {
