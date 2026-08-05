@@ -1,9 +1,19 @@
 # TRMS glossary
 
+## Mold blank
+
+A placeable clay `trms:mold_blank` intermediate that accepts carving but cannot
+accept a fill. Smelting it in a furnace turns it into a Mold while retaining its
+carved pattern.
+
 ## Mold
 
-A placeable `trms:mold` ceramic block and its corresponding item. A Mold keeps
-its carved pattern when converted between the placed BlockEntity and the item.
+A fired, placeable `trms:mold` ceramic block and its corresponding item. A Mold
+accepts fill material but does not accept carving; it keeps its carved pattern
+when converted between the placed BlockEntity and the item.
+
+Mold blanks are crafted from nine clay balls, never accept a fill, and are fired
+into molds by the standard furnace smelting recipe.
 
 ## Mold shell
 
