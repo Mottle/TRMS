@@ -49,13 +49,17 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         return coolingTicks;
     }
 
+    boolean isBlank() {
+        return getBlockState().is(TrmsContent.MOLD_BLANK.block());
+    }
+
     boolean canFill() {
-        return !pattern.isEmpty() && fillMaterial.isEmpty();
+        return !isBlank() && !pattern.isEmpty() && fillMaterial.isEmpty();
     }
 
     /** Applies one server-validated carving and sends the new editable pattern to chunk watchers. */
     boolean carve(int localX, int localZ) {
-        if (fillMaterial.isPresent() || !pattern.canCarve(localX, localZ)) {
+        if (!isBlank() || fillMaterial.isPresent() || !pattern.canCarve(localX, localZ)) {
             return false;
         }
         pattern = pattern.carve(localX, localZ);
@@ -189,6 +193,9 @@ final class TrmsMoldBlockEntity extends BlockEntity {
         revision = saved.revision();
         fillMaterial = saved.fillMaterial();
         coolingTicks = saved.coolingTicks();
+        if (isBlank() && (fillMaterial.isPresent() || coolingTicks != 0)) {
+            throw new IllegalStateException("A mold blank cannot contain fill or cooling state");
+        }
         if (level instanceof ServerLevel serverLevel) {
             synchronizeFilledBlockState(serverLevel);
             if (fillMaterial.isPresent()) {

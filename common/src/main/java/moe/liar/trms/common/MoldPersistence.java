@@ -1,7 +1,7 @@
 package moe.liar.trms.common;
 
 /**
- * Side-neutral persistent envelope contract for a placed ceramic mold.
+ * Side-neutral persistent envelope contract for a placed mold or mold blank.
  *
  * <p>The values are plain strings and an integer so both runtime endpoints can
  * share them without a Minecraft, NeoForge, or Horizon dependency.</p>

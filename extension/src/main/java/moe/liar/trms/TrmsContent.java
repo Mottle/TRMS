@@ -5,11 +5,14 @@ import moe.liar.horizon.extension.ExtensionContext;
 import moe.liar.horizon.extension.registrate.DeclarativeRegistrar;
 import moe.liar.horizon.extension.registrate.entry.BlockEntry;
 import moe.liar.horizon.extension.registrate.entry.ItemEntry;
+import moe.liar.horizon.extension.registrate.entry.RecipeEntry;
 import moe.liar.horizon.extension.registrate.entry.RegistryEntry;
 import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.material.MapColor;
 
@@ -33,7 +36,13 @@ final class TrmsContent {
             .properties(properties -> properties.stacksTo(1))
             .register();
 
-    static final BlockEntry<TrmsMoldBlock, TrmsMoldBlockEntity, AbstractContainerMenu> MOLD =
+    /** Serializer used by the mold-from-blank recipe JSON and sync payload. */
+    static final RecipeEntry<SmeltingRecipe> MOLD_SMELTING_SERIALIZER =
+            REGISTRAR.<SmeltingRecipe>recipe("mold_smelting")
+                    .serializer(TrmsMoldSmeltingRecipe.SERIALIZER)
+                    .registerSerializer();
+
+    static final BlockEntry<TrmsMoldBlock, BlockEntity, AbstractContainerMenu> MOLD =
             REGISTRAR.block("mold", (properties, key) ->
                             new TrmsMoldBlock(properties, key, TrmsContent::moldBlockEntityType))
                     .properties(properties -> properties
@@ -45,15 +54,36 @@ final class TrmsContent {
                                     state.getValue(TrmsMoldBlock.COOLING_STAGE)))
                             .noOcclusion())
                     .item(properties -> properties.stacksTo(1))
-                    .blockEntity(TrmsMoldBlockEntity::new)
+                    .register();
+
+    static final BlockEntry<TrmsMoldBlock, BlockEntity, AbstractContainerMenu> MOLD_BLANK =
+            REGISTRAR.block("mold_blank", (properties, key) ->
+                            new TrmsMoldBlock(properties, key, TrmsContent::moldBlockEntityType))
+                    .properties(properties -> properties
+                            .mapColor(MapColor.CLAY)
+                            .strength(1.25F, 6.0F)
+                            .sound(SoundType.GRAVEL)
+                            .noOcclusion())
+                    .item(properties -> properties.stacksTo(1))
+                    .register();
+
+    static final RegistryEntry<BlockEntityType<TrmsMoldBlockEntity>> MOLD_BLOCK_ENTITY =
+            REGISTRAR.blockEntity("mold", TrmsMoldBlockEntity::new)
+                    .validBlocks(MOLD::block, MOLD_BLANK::block)
                     .register();
 
     static void register(ExtensionContext context) {
         REGISTRAR.registerAll(context);
+        // The recipe deliberately keeps vanilla RecipeType.SMELTING so furnaces
+        // can discover it. Horizon's public registrar can only sync newly-owned
+        // recipe types (and registering the vanilla singleton under a second id
+        // is rejected by Minecraft's registry), so bridge the existing type to
+        // Horizon's content-sync set after all owned content is registered.
+        TrmsRecipeContentSync.registerVanillaSmeltingType();
     }
 
     static BlockEntityType<TrmsMoldBlockEntity> moldBlockEntityType() {
-        return MOLD.blockEntity();
+        return MOLD_BLOCK_ENTITY.get();
     }
 
     static DataComponentType<TrmsMoldPattern> moldPatternComponent() {
@@ -62,6 +92,10 @@ final class TrmsContent {
 
     static Item moldItem() {
         return MOLD.item();
+    }
+
+    static Item moldBlankItem() {
+        return MOLD_BLANK.item();
     }
 
     static DataComponentType<TrmsWeaponPart> weaponPartComponent() {

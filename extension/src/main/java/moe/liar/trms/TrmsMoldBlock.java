@@ -113,6 +113,9 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
     @Override
     protected InteractionResult useItemOn(ItemStack stack, BlockState state, Level level, BlockPos pos,
                                           Player player, InteractionHand hand, BlockHitResult hitResult) {
+        if (!state.is(TrmsContent.MOLD.block())) {
+            return InteractionResult.PASS;
+        }
         var definition = TrmsMoldFillMaterials.forIngredient(stack);
         if (definition.isEmpty()
                 || !(level.getBlockEntity(pos) instanceof TrmsMoldBlockEntity mold)
@@ -153,6 +156,9 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
                                      BlockPos pos, Direction direction, BlockPos neighborPos,
                                      BlockState neighborState, RandomSource random) {
         if (direction == Direction.DOWN && !state.canSurvive(level, pos)) {
+            // The neighbor updater routes an AIR result through
+            // Block.updateOrDestroy, which calls destroyBlock with drops enabled
+            // on the server. That preserves the BE pattern for both mold forms.
             return Blocks.AIR.defaultBlockState();
         }
         return super.updateShape(state, level, scheduledTickAccess, pos, direction, neighborPos, neighborState, random);
@@ -200,7 +206,8 @@ final class TrmsMoldBlock extends Block implements EntityBlock {
         BlockEntity blockEntity = builder.getOptionalParameter(LootContextParams.BLOCK_ENTITY);
         if (blockEntity instanceof TrmsMoldBlockEntity mold) {
             for (ItemStack drop : drops) {
-                if (drop.is(TrmsContent.moldItem())) {
+                if (state.is(TrmsContent.MOLD.block()) && drop.is(TrmsContent.moldItem())
+                        || state.is(TrmsContent.MOLD_BLANK.block()) && drop.is(TrmsContent.moldBlankItem())) {
                     TrmsMoldData.storeItemPattern(drop, TrmsContent.moldPatternComponent(), mold.pattern());
                 }
             }

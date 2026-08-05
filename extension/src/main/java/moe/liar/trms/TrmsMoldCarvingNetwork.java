@@ -83,7 +83,7 @@ final class TrmsMoldCarvingNetwork {
                 || !player.mayUseItemAt(moldPos, Direction.UP, tool)) {
             return;
         }
-        if (!level.getBlockState(moldPos).is(TrmsContent.MOLD.block())
+        if (!level.getBlockState(moldPos).is(TrmsContent.MOLD_BLANK.block())
                 || !(level.getBlockEntity(moldPos) instanceof TrmsMoldBlockEntity mold)
                 || !TrmsMoldBlock.hasLodestoneCarvingBase(level, moldPos)
                 || mold.fillMaterial().isPresent()

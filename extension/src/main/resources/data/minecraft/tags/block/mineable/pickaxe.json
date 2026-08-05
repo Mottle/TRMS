@@ -1,6 +1,7 @@
 {
   "replace": false,
   "values": [
-    "trms:mold"
+    "trms:mold",
+    "trms:mold_blank"
   ]
 }

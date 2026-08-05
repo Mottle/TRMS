@@ -1,0 +1,6 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": ["CCC", "CCC", "CCC"],
+  "key": {"C": "minecraft:clay_ball"},
+  "result": {"id": "trms:mold_blank", "count": 1}
+}
