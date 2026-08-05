@@ -57,4 +57,14 @@ class MoldItemResourceTest {
             assertEquals("trms:mold_first_person_special", firstPersonRenderer.get("type").getAsString());
         }
     }
+
+    @Test
+    void guiMoldIsRaisedByFourPixels() throws IOException {
+        try (InputStream resource = getClass().getResourceAsStream("/assets/trms/models/item/mold_gui.json")) {
+            assertNotNull(resource, "mold GUI model must be packaged for the client");
+            JsonObject display = JsonParser.parseString(new String(resource.readAllBytes(), StandardCharsets.UTF_8))
+                    .getAsJsonObject().getAsJsonObject("display").getAsJsonObject("gui");
+            assertEquals(4.0F, display.getAsJsonArray("translation").get(1).getAsFloat());
+        }
+    }
 }
