@@ -42,6 +42,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         state.revision = blockEntity.revision();
         state.fillMaterial = blockEntity.fillMaterial();
         state.coolingTicks = blockEntity.coolingTicks();
+        state.isBlank = blockEntity.isBlank();
         state.facing = facing;
         state.showCarvingGuide = shouldShowCarvingGuide(blockEntity);
         state.carvingGuide = MoldCarvingGuide.Layout.EMPTY;
@@ -55,7 +56,8 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         state.hoveredCarvingAlpha = state.hoveredCarvingCell == null || blockEntity.getLevel() == null
                 ? 0
                 : MoldCarvingGuide.hoverPulseAlpha(blockEntity.getLevel().getGameTime() + partialTick);
-        net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = sprites.get(MoldMeshBuilder.TERRACOTTA_SPRITE);
+        net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = sprites.get(
+                blockEntity.isBlank() ? MoldMeshBuilder.CLAY_SPRITE : MoldMeshBuilder.TERRACOTTA_SPRITE);
         if (blockEntity.getLevel() instanceof BlockAndTintGetter level) {
             state.worldLighting = blockEntity.renderCache().worldLighting(
                     pattern,
@@ -100,7 +102,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         MoldMeshBuilder.Mesh mesh = meshCache.get(
                 state.pattern,
                 state.revision,
-                sprites.get(MoldMeshBuilder.TERRACOTTA_SPRITE)
+                sprites.get(state.isBlank ? MoldMeshBuilder.CLAY_SPRITE : MoldMeshBuilder.TERRACOTTA_SPRITE)
         );
         poseStack.pushPose();
         // Keep the dynamic interior and every carving aid in the exact same
@@ -125,7 +127,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
     }
 
     private static boolean shouldShowCarvingGuide(MoldBlockEntity mold) {
-        if (mold.isFilled()) {
+        if (!mold.isBlank() || mold.isFilled()) {
             return false;
         }
         Minecraft minecraft = Minecraft.getInstance();

@@ -20,6 +20,12 @@ public final class TrmsClientRendering {
                 MoldSpecialModelRenderer.FirstPersonUnbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "mold_ground_special"),
                 MoldSpecialModelRenderer.GroundUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "mold_blank_special"),
+                MoldSpecialModelRenderer.BlankUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "mold_blank_first_person_special"),
+                MoldSpecialModelRenderer.BlankFirstPersonUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "mold_blank_ground_special"),
+                MoldSpecialModelRenderer.BlankGroundUnbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "weapon_part_special"),
                 WeaponPartSpecialModelRenderer.Unbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "weapon_part_gui_special"),

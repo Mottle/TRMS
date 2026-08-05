@@ -1,5 +1,7 @@
 {
   "block.trms.mold": "陶瓷模具",
   "item.trms.mold": "陶瓷模具",
+  "block.trms.mold_blank": "模具胚",
+  "item.trms.mold_blank": "模具胚",
   "item.trms.weapon_part": "浇铸武器零件"
 }

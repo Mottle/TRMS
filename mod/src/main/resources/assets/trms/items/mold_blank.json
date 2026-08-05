@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:select",
+    "property": "minecraft:display_context",
+    "cases": [
+      {"when": ["gui"], "model": {"type": "minecraft:model", "model": "trms:item/mold_blank_gui"}},
+      {"when": ["ground"], "model": {"type": "minecraft:special", "base": "trms:item/mold_blank", "model": {"type": "trms:mold_blank_ground_special"}}},
+      {"when": ["firstperson_lefthand", "firstperson_righthand"], "model": {"type": "minecraft:special", "base": "trms:item/mold_blank", "model": {"type": "trms:mold_blank_first_person_special"}}}
+    ],
+    "fallback": {"type": "minecraft:special", "base": "trms:item/mold_blank", "model": {"type": "trms:mold_blank_special"}}
+  }
+}

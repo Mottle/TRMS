@@ -51,6 +51,11 @@ public final class MoldBlockEntity extends BlockEntity {
         return fillMaterial != null;
     }
 
+    /** Returns whether this shared client mirror belongs to the clay blank block. */
+    public boolean isBlank() {
+        return getBlockState().is(TrmsClientMod.MOLD_BLANK.get());
+    }
+
     /** Returns the server-authoritative elapsed cooling time while this mold remains filled. */
     public int coolingTicks() {
         return coolingTicks;
@@ -79,6 +84,9 @@ public final class MoldBlockEntity extends BlockEntity {
         fillMaterial = readFillMaterial(input);
         coolingTicks = readCoolingTicks(input, fillMaterial);
         validateFillState(pattern, fillMaterial, coolingTicks);
+        if (isBlank() && (fillMaterial != null || coolingTicks != 0)) {
+            throw new IllegalStateException("A mold blank cannot contain fill or cooling state");
+        }
         renderCache.invalidate();
     }
 

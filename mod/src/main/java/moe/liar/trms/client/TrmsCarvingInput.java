@@ -25,7 +25,7 @@ final class TrmsCarvingInput {
 
         BlockPos moldPos = event.getPos();
         BlockState moldState = level.getBlockState(moldPos);
-        if (!moldState.is(TrmsClientMod.MOLD.get())
+        if (!moldState.is(TrmsClientMod.MOLD_BLANK.get())
                 || !level.getBlockState(moldPos.below()).is(Blocks.LODESTONE)
                 || !(level.getBlockEntity(moldPos) instanceof MoldBlockEntity mold)
                 || mold.isFilled()) {

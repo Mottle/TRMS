@@ -1,0 +1,7 @@
+{
+  "parent": "trms:item/mold_gui",
+  "textures": {
+    "ceramic": "minecraft:block/clay",
+    "particle": "minecraft:block/clay"
+  }
+}

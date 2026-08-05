@@ -12,21 +12,24 @@ import org.joml.Vector3fc;
 public final class MoldSpecialModelRenderer implements SpecialModelRenderer<ItemStack> {
     private final MoldMeshBuilder.Cache meshCache = new MoldMeshBuilder.Cache(true);
     private final Presentation presentation;
+    private final boolean clay;
 
     /** Creates the standard third-person, fixed, and fallback item renderer. */
     public MoldSpecialModelRenderer() {
-        this(Presentation.STANDARD);
+        this(Presentation.STANDARD, false);
     }
 
-    private MoldSpecialModelRenderer(Presentation presentation) {
+    private MoldSpecialModelRenderer(Presentation presentation, boolean clay) {
         this.presentation = presentation;
+        this.clay = clay;
     }
 
     @Override
     public void submit(ItemStack stack, PoseStack poseStack, SubmitNodeCollector collector,
                        int light, int overlay, boolean foil, int seed) {
         MoldPattern pattern = stack.getOrDefault(TrmsClientMod.MOLD_PATTERN.get(), MoldPattern.EMPTY);
-        MoldMeshBuilder.Mesh mesh = meshCache.get(pattern, 0L, MoldMeshBuilder.currentTerracottaSprite());
+        MoldMeshBuilder.Mesh mesh = meshCache.get(pattern, 0L,
+                clay ? MoldMeshBuilder.currentClaySprite() : MoldMeshBuilder.currentTerracottaSprite());
         switch (presentation) {
             case STANDARD -> mesh.submitItem(poseStack, collector, light, overlay);
             case FIRST_PERSON -> mesh.submitFirstPersonItem(poseStack, collector, light, overlay);
@@ -62,7 +65,7 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
 
         @Override
         public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
-            return new MoldSpecialModelRenderer(Presentation.STANDARD);
+            return new MoldSpecialModelRenderer(Presentation.STANDARD, false);
         }
     }
 
@@ -77,7 +80,7 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
 
         @Override
         public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
-            return new MoldSpecialModelRenderer(Presentation.FIRST_PERSON);
+            return new MoldSpecialModelRenderer(Presentation.FIRST_PERSON, false);
         }
     }
 
@@ -92,7 +95,49 @@ public final class MoldSpecialModelRenderer implements SpecialModelRenderer<Item
 
         @Override
         public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
-            return new MoldSpecialModelRenderer(Presentation.GROUND);
+            return new MoldSpecialModelRenderer(Presentation.GROUND, false);
+        }
+    }
+
+    public record BlankUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<BlankUnbaked> CODEC = MapCodec.unit(new BlankUnbaked());
+
+        @Override
+        public MapCodec<BlankUnbaked> type() {
+            return CODEC;
+        }
+
+        @Override
+        public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new MoldSpecialModelRenderer(Presentation.STANDARD, true);
+        }
+    }
+
+    public record BlankFirstPersonUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<BlankFirstPersonUnbaked> CODEC = MapCodec.unit(new BlankFirstPersonUnbaked());
+
+        @Override
+        public MapCodec<BlankFirstPersonUnbaked> type() {
+            return CODEC;
+        }
+
+        @Override
+        public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new MoldSpecialModelRenderer(Presentation.FIRST_PERSON, true);
+        }
+    }
+
+    public record BlankGroundUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<BlankGroundUnbaked> CODEC = MapCodec.unit(new BlankGroundUnbaked());
+
+        @Override
+        public MapCodec<BlankGroundUnbaked> type() {
+            return CODEC;
+        }
+
+        @Override
+        public MoldSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new MoldSpecialModelRenderer(Presentation.GROUND, true);
         }
     }
 

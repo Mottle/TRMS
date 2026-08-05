@@ -1,5 +1,7 @@
 {
   "block.trms.mold": "Ceramic Mold",
   "item.trms.mold": "Ceramic Mold",
+  "block.trms.mold_blank": "Mold Blank",
+  "item.trms.mold_blank": "Mold Blank",
   "item.trms.weapon_part": "Cast Weapon Part"
 }

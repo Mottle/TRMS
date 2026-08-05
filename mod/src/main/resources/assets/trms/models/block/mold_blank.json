@@ -1,0 +1,7 @@
+{
+  "parent": "trms:block/mold",
+  "textures": {
+    "ceramic": "minecraft:block/clay",
+    "particle": "minecraft:block/clay"
+  }
+}

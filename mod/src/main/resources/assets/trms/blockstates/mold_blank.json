@@ -1,0 +1,8 @@
+{
+  "multipart": [
+    {"when": {"facing": "south"}, "apply": {"model": "trms:block/mold_blank"}},
+    {"when": {"facing": "west"}, "apply": {"model": "trms:block/mold_blank", "y": 90}},
+    {"when": {"facing": "north"}, "apply": {"model": "trms:block/mold_blank", "y": 180}},
+    {"when": {"facing": "east"}, "apply": {"model": "trms:block/mold_blank", "y": 270}}
+  ]
+}

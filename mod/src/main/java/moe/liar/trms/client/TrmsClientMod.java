@@ -12,6 +12,8 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.crafting.RecipeSerializer;
+import net.minecraft.world.item.crafting.SmeltingRecipe;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -30,6 +32,8 @@ public final class TrmsClientMod {
             DeferredRegister.createDataComponents(Registries.DATA_COMPONENT_TYPE, MOD_ID);
     public static final DeferredRegister<BlockEntityType<?>> BLOCK_ENTITIES =
             DeferredRegister.create(BuiltInRegistries.BLOCK_ENTITY_TYPE, MOD_ID);
+    public static final DeferredRegister<RecipeSerializer<?>> RECIPE_SERIALIZERS =
+            DeferredRegister.create(BuiltInRegistries.RECIPE_SERIALIZER, MOD_ID);
 
     public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<MoldPattern>> MOLD_PATTERN =
             COMPONENTS.registerComponentType("mold_pattern", builder -> builder
@@ -56,9 +60,24 @@ public final class TrmsClientMod {
                             : 0)
                     .noOcclusion()
     );
+    public static final DeferredHolder<Block, MoldBlock> MOLD_BLANK = BLOCKS.registerBlock(
+            "mold_blank",
+            MoldBlock::new,
+            properties -> properties
+                    .mapColor(MapColor.CLAY)
+                    .sound(SoundType.GRAVEL)
+                    .strength(1.25F, 6.0F)
+                    .noOcclusion()
+    );
     public static final DeferredHolder<Item, BlockItem> MOLD_ITEM = ITEMS.registerItem(
             "mold",
             properties -> new BlockItem(MOLD.get(), properties
+                    .stacksTo(1)
+                    .useBlockDescriptionPrefix())
+    );
+    public static final DeferredHolder<Item, BlockItem> MOLD_BLANK_ITEM = ITEMS.registerItem(
+            "mold_blank",
+            properties -> new BlockItem(MOLD_BLANK.get(), properties
                     .stacksTo(1)
                     .useBlockDescriptionPrefix())
     );
@@ -67,7 +86,10 @@ public final class TrmsClientMod {
             properties -> new Item(properties.stacksTo(1))
     );
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MoldBlockEntity>> MOLD_BLOCK_ENTITY =
-            BLOCK_ENTITIES.register("mold", () -> new BlockEntityType<>(MoldBlockEntity::new, MOLD.get()));
+            BLOCK_ENTITIES.register("mold", () -> new BlockEntityType<>(MoldBlockEntity::new,
+                    MOLD.get(), MOLD_BLANK.get()));
+    public static final DeferredHolder<RecipeSerializer<?>, RecipeSerializer<SmeltingRecipe>> MOLD_SMELTING_SERIALIZER =
+            RECIPE_SERIALIZERS.register("mold_smelting", () -> ClientMoldSmeltingRecipe.SERIALIZER);
 
     private static final Logger LOGGER = LoggerFactory.getLogger("TRMS");
 
@@ -76,6 +98,7 @@ public final class TrmsClientMod {
         ITEMS.register(modBus);
         COMPONENTS.register(modBus);
         BLOCK_ENTITIES.register(modBus);
+        RECIPE_SERIALIZERS.register(modBus);
         modBus.addListener(TrmsClientRendering::registerRenderers);
         modBus.addListener(TrmsClientRendering::registerSpecialModelRenderers);
         modBus.addListener(TrmsHandshake::registerPayloads);
