@@ -73,6 +73,9 @@ class WeaponPartItemResourceTest {
             assertEquals(thirdPersonRightHand, thirdPersonLeftHand,
                     "both third-person hands must use the same calibrated local placement");
 
+            assertEquals(5, display.getAsJsonObject("ground").getAsJsonArray("translation").get(1).getAsInt(),
+                    "the dropped casting must sit above the ground plane without clipping");
+
             JsonObject fixed = display.getAsJsonObject("fixed");
             assertEquals(0, fixed.getAsJsonArray("rotation").get(0).getAsInt());
             assertEquals(0, fixed.getAsJsonArray("rotation").get(1).getAsInt());

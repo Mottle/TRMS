@@ -42,6 +42,7 @@ class AssembledWeaponItemResourceTest {
             assertNotNull(display.getAsJsonObject("thirdperson_righthand"));
             assertNotNull(display.getAsJsonObject("thirdperson_lefthand"));
             assertNotNull(display.getAsJsonObject("ground"));
+            assertEquals(0, display.getAsJsonObject("ground").getAsJsonArray("translation").get(1).getAsInt());
             assertNotNull(display.getAsJsonObject("fixed"));
             assertEquals(45, display.getAsJsonObject("gui").getAsJsonArray("rotation").get(0).getAsInt());
         }

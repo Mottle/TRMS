@@ -1,50 +1,38 @@
 package moe.liar.trms.client;
 
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.level.Level;
 import net.neoforged.neoforge.client.network.ClientPacketDistributor;
-import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
+import net.neoforged.neoforge.client.event.InputEvent;
 
-/** Detects the crouch + casting + stick gesture without replacing ordinary use otherwise. */
+/** Detects the crouch + casting + stick gesture before vanilla resolves the targeted interaction. */
 final class TrmsAssemblyInput {
     private TrmsAssemblyInput() {
     }
 
-    static void onRightClickBlock(PlayerInteractEvent.RightClickBlock event) {
-        if (tryStart(event.getEntity(), event.getLevel(), event.getHand(),
-                result -> {
-                    event.setCancellationResult(result);
-                    event.setCanceled(true);
-                })) {
-            // The callback performs cancellation after the packet is queued.
+    /**
+     * Opens the assembly flow from the use key itself, before vanilla chooses
+     * a block, entity, or empty-space interaction path.  The three
+     * {@code PlayerInteractEvent} variants are not equivalent: only one may
+     * fire depending on the hit result, and a preceding interaction can skip
+     * the later variants entirely.
+     */
+    static void onUseKey(InputEvent.InteractionKeyMappingTriggered event) {
+        if (!event.isUseItem() || event.getHand() != InteractionHand.MAIN_HAND) {
+            return;
         }
-    }
-
-    static void onRightClickItem(PlayerInteractEvent.RightClickItem event) {
-        tryStart(event.getEntity(), event.getLevel(), event.getHand(),
-                result -> {
-                    event.setCancellationResult(result);
-                    event.setCanceled(true);
-                });
-    }
-
-    static void onRightClickEmpty(PlayerInteractEvent.RightClickEmpty event) {
-        tryStart(event.getEntity(), event.getLevel(), InteractionHand.MAIN_HAND, result -> {
-            // RightClickEmpty is cancellable but has no cancellation result setter on all NeoForge mappings.
-        });
-    }
-
-    private static boolean tryStart(Player player, Level level, InteractionHand hand, java.util.function.Consumer<InteractionResult> cancel) {
-        if (!level.isClientSide() || hand != InteractionHand.MAIN_HAND || !player.isCrouching()
+        Player player = net.minecraft.client.Minecraft.getInstance().player;
+        if (player == null || !player.isCrouching()
                 || player.isSpectator() || !player.getMainHandItem().is(TrmsClientMod.WEAPON_PART_ITEM.get())
                 || player.getMainHandItem().get(TrmsClientMod.WEAPON_PART.get()) == null
                 || !player.getOffhandItem().is(net.minecraft.world.item.Items.STICK)) {
-            return false;
+            return;
         }
         ClientPacketDistributor.sendToServer(new AssemblyStartPayload());
-        cancel.accept(InteractionResult.SUCCESS);
-        return true;
+        // The combination screen follows the server's validation response.
+        // Suppressing vanilla use prevents an unrelated block or item action
+        // (and the misleading hand swing) during that round trip.
+        event.setSwingHand(false);
+        event.setCanceled(true);
     }
 }

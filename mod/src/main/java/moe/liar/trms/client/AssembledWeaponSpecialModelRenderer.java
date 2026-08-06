@@ -1,7 +1,6 @@
 package moe.liar.trms.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Axis;
 import com.mojang.serialization.MapCodec;
 import java.util.function.Consumer;
 import java.util.LinkedHashMap;
@@ -52,19 +51,20 @@ public final class AssembledWeaponSpecialModelRenderer implements SpecialModelRe
             case GUI -> MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
                     data.connectionX(), data.connectionZ(), true);
             case FIRST_PERSON -> {
-                MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
-                        data.connectionX(), data.connectionZ(), false);
-                poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+                MoldMeshBuilder.centerFirstPersonAssembledWeaponGeometry(poseStack, data.pattern(),
+                        data.connectionX(), data.connectionZ());
             }
             case FIXED -> MoldMeshBuilder.centerFixedAssembledWeaponGeometry(poseStack, data.pattern(),
                     data.connectionX(), data.connectionZ());
             case GROUND -> MoldMeshBuilder.centerGroundAssembledWeaponGeometry(poseStack, data.pattern(),
                     data.connectionX(), data.connectionZ());
-            case THIRD_PERSON, STANDARD -> MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
+            case THIRD_PERSON -> MoldMeshBuilder.centerThirdPersonAssembledWeaponGeometry(poseStack, data.pattern(),
+                    data.connectionX(), data.connectionZ());
+            case STANDARD -> MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
                     data.connectionX(), data.connectionZ(), false);
         }
         casting.submitTintedItem(poseStack, collector, light, overlay, visual.baseColor());
-        handle.submitTintedItem(poseStack, collector, light, overlay, 0xFF9A683B);
+        handle.submitWoodItem(poseStack, collector, light, overlay);
         poseStack.popPose();
     }
 

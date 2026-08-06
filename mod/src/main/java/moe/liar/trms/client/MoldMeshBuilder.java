@@ -26,6 +26,8 @@ import moe.liar.trms.common.MoldWeaponAssembly;
 
 /** Pure client quad builder shared by world and item rendering. */
 public final class MoldMeshBuilder {
+    /** Screen-space vertical adjustment for the assembled weapon's first-person presentation. */
+    static final float ASSEMBLED_WEAPON_FIRST_PERSON_Y_OFFSET = -2.0F / 16.0F;
     /*
      * TextureAtlas.LOCATION_BLOCKS is deprecated in 26.1.2 even though the
      * atlas manager still identifies this atlas by its texture location.
@@ -68,6 +70,11 @@ public final class MoldMeshBuilder {
     public static final SpriteId SOLID_METAL_SPRITE = new SpriteId(
             BLOCK_ATLAS_TEXTURE,
             Identifier.fromNamespaceAndPath("trms", "block/solid_metal")
+    );
+    /** Hand-authored 16x16 texture with explicit one-pixel handle face strips. */
+    public static final SpriteId WOOD_HANDLE_SPRITE = new SpriteId(
+            BLOCK_ATLAS_TEXTURE,
+            Identifier.fromNamespaceAndPath("trms", "block/wood_handle")
     );
     /**
      * Raw block-model bounds for the standard special-item presentation.
@@ -155,8 +162,7 @@ public final class MoldMeshBuilder {
     }
 
     public static TextureAtlasSprite currentWoodSprite() {
-        return Minecraft.getInstance().getAtlasManager().get(new SpriteId(
-                BLOCK_ATLAS_TEXTURE, Identifier.withDefaultNamespace("block/oak_planks")));
+        return Minecraft.getInstance().getAtlasManager().get(WOOD_HANDLE_SPRITE);
     }
 
     /** Applies the directional presentation turn to block-local world geometry. */
@@ -186,8 +192,11 @@ public final class MoldMeshBuilder {
     }
 
     public static Mesh buildHandle(int connectionX, int connectionZ, TextureAtlasSprite sprite) {
-        return build(MoldMeshTopology.buildHandle(connectionX, connectionZ), sprite,
-                RenderTypes.entitySolid(sprite.atlasLocation()));
+        List<MoldMeshTopology.Quad> topology = MoldMeshTopology.buildHandle(connectionX, connectionZ);
+        List<Face> faces = topology.stream()
+                .map(quad -> handleFace(quad, connectionX, connectionZ, sprite))
+                .toList();
+        return new Mesh(faces, RenderTypes.entitySolid(sprite.atlasLocation()));
     }
 
     /**
@@ -316,6 +325,12 @@ public final class MoldMeshBuilder {
                     (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, tint));
         }
 
+        /** Submits a handle with its opaque, hand-authored pixel texture unchanged. */
+        public void submitWoodItem(PoseStack poseStack, SubmitNodeCollector collector, int light, int overlay) {
+            collector.submitCustomGeometry(poseStack, renderType,
+                    (pose, vertices) -> render(pose, vertices, light, overlay, 1.0f / 16.0f, null, 0xFFFFFFFF));
+        }
+
         /**
          * Submits a completed casting centered and proportionally scaled from
          * its actual carved outline for GUI, hand, frame, and fallback item
@@ -403,6 +418,7 @@ public final class MoldMeshBuilder {
                 }
             }
         }
+
     }
 
     /** Multiplies a material tint by the grayscale ambient-occlusion colour sampled from the world. */
@@ -444,6 +460,39 @@ public final class MoldMeshBuilder {
                 -presentation.centerZ());
     }
 
+    /**
+     * Maps the complete casting and its handle onto Minecraft's native
+     * first-person XY item plane.  The assembled geometry is authored on the
+     * mold's horizontal XZ surface, so using the generic centered transform
+     * leaves it edge-on (and effectively invisible) after the handheld item
+     * transform.  Keep the handle in this same transform so it remains
+     * attached to the casting in the player's hand.
+     */
+    static void centerFirstPersonAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
+                                                          int connectionX, int connectionZ) {
+        AssembledWeaponItemPresentation presentation = assembledWeaponItemPresentation(
+                pattern, connectionX, connectionZ, false);
+        poseStack.translate(0.5F - presentation.centerX(),
+                0.5F + presentation.centerZ() + ASSEMBLED_WEAPON_FIRST_PERSON_Y_OFFSET,
+                0.46875F);
+        poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+    }
+
+    /**
+     * Presents the assembled weapon like a vanilla handheld tool in third
+     * person.  Its broad face is turned a quarter-turn around the item centre
+     * line so the handle follows the hand's central axis instead of lying
+     * sideways across the palm.
+     */
+    static void centerThirdPersonAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
+                                                          int connectionX, int connectionZ) {
+        centerAssembledWeaponGeometry(poseStack, pattern, connectionX, connectionZ, false);
+        // The ordinary item pivot has already translated the centred mesh to
+        // the origin; rotate around that pivot so the quarter-turn does not
+        // introduce a positional offset in the player's hand.
+        rotateYAround(poseStack, 90.0F, 0.0F, 0.0F);
+    }
+
     /** Maps the complete casting and handle to the vertical plane used by frames. */
     static void centerFixedAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
                                                     int connectionX, int connectionZ) {
@@ -459,7 +508,15 @@ public final class MoldMeshBuilder {
                                                      int connectionX, int connectionZ) {
         AssembledWeaponItemPresentation presentation = assembledWeaponItemPresentation(
                 pattern, connectionX, connectionZ, true);
-        poseStack.translate(0.5F, 0.5F, 0.5F);
+        // Ground item transforms already own vertical placement.  Unlike GUI
+        // and hand contexts, adding the usual 0.5 model-centering Y offset
+        // here lifts the assembled weapon eight pixels above ordinary dropped
+        // items. Keep horizontal centering, but submit on the raw ground Y.
+        // Match the lower resting plane of vanilla dropped item sprites. The
+        // assembled mesh remains visually taller than a flat item after its
+        // center offset is removed, so lower only this ground presentation by
+        // another 30% of the remaining calibrated offset.
+        poseStack.translate(0.5F, -0.6F, 0.5F);
         poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
         poseStack.translate(-presentation.centerX(),
                 -MoldWeaponAssembly.HANDLE_THICKNESS / 32.0F,
@@ -711,6 +768,50 @@ public final class MoldMeshBuilder {
                 quad.x3(), quad.y3(), quad.z3(), interpolate(spriteU0, spriteU1, fourth.u()), interpolate(spriteV0, spriteV1, fourth.v()),
                 quad.nx(), quad.ny(), quad.nz()
         );
+    }
+
+    /** Maps each handle model pixel to one explicit pixel in its texture layout. */
+    private static Face handleFace(MoldMeshTopology.Quad quad, int connectionX, int connectionZ,
+                                   TextureAtlasSprite sprite) {
+        float u0 = sprite.getU0();
+        float u1 = sprite.getU1();
+        float v0 = sprite.getV0();
+        float v1 = sprite.getV1();
+        MoldMeshTopology.TextureCoordinates first = handleTextureCoordinates(
+                quad.x0(), quad.y0(), quad.z0(), quad, connectionX, connectionZ);
+        MoldMeshTopology.TextureCoordinates second = handleTextureCoordinates(
+                quad.x1(), quad.y1(), quad.z1(), quad, connectionX, connectionZ);
+        MoldMeshTopology.TextureCoordinates third = handleTextureCoordinates(
+                quad.x2(), quad.y2(), quad.z2(), quad, connectionX, connectionZ);
+        MoldMeshTopology.TextureCoordinates fourth = handleTextureCoordinates(
+                quad.x3(), quad.y3(), quad.z3(), quad, connectionX, connectionZ);
+        return new Face(
+                quad.x0(), quad.y0(), quad.z0(), interpolate(u0, u1, first.u()), interpolate(v0, v1, first.v()),
+                quad.x1(), quad.y1(), quad.z1(), interpolate(u0, u1, second.u()), interpolate(v0, v1, second.v()),
+                quad.x2(), quad.y2(), quad.z2(), interpolate(u0, u1, third.u()), interpolate(v0, v1, third.v()),
+                quad.x3(), quad.y3(), quad.z3(), interpolate(u0, u1, fourth.u()), interpolate(v0, v1, fourth.v()),
+                quad.nx(), quad.ny(), quad.nz()
+        );
+    }
+
+    private static MoldMeshTopology.TextureCoordinates handleTextureCoordinates(
+            float x, float y, float z, MoldMeshTopology.Quad quad, int connectionX, int connectionZ) {
+        if (quad.ny() != 0.0F) {
+            return new MoldMeshTopology.TextureCoordinates(
+                    (x - connectionX) / 16.0F,
+                    (z - connectionZ) / 16.0F);
+        }
+        if (quad.nx() != 0.0F) {
+            return new MoldMeshTopology.TextureCoordinates(
+                    (z - connectionZ) / 16.0F,
+                    (1.0F - y / MoldWeaponAssembly.HANDLE_THICKNESS) / 16.0F);
+        }
+        if (quad.nz() != 0.0F) {
+            return new MoldMeshTopology.TextureCoordinates(
+                    (x - connectionX) / 16.0F,
+                    (1.0F - y / MoldWeaponAssembly.HANDLE_THICKNESS) / 16.0F);
+        }
+        throw new IllegalArgumentException("A handle quad must have a non-zero normal");
     }
 
     private static MoldMeshTopology.TextureCoordinates textureCoordinates(float x, float y, float z,

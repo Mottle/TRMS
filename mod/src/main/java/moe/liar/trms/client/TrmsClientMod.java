@@ -112,9 +112,7 @@ public final class TrmsClientMod {
         modBus.addListener(TrmsHandshake::registerPayloads);
         modBus.addListener(TrmsHandshake::registerClientHandlers);
         NeoForge.EVENT_BUS.addListener(TrmsCarvingInput::onRightClickBlock);
-        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickBlock);
-        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickItem);
-        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickEmpty);
+        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onUseKey);
         LOGGER.info("TRMS client mod initialized (protocol v{})", TrmsProtocol.VERSION);
     }
 }
