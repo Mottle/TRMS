@@ -10,6 +10,7 @@ documents here are their shared behavioral contract.
 - [ADR-0001: ceramic single-layer mold carving](adr/0001-ceramic-single-layer-mold-carving.md)
 - [ADR-0002: visual molten mold fills](adr/0002-visual-molten-mold-fills.md)
 - [ADR-0003: mold cooling and weapon parts](adr/0003-mold-cooling-and-weapon-parts.md)
+- [ADR-0004: dedicated weapon assembly interface](adr/0004-dedicated-weapon-assembly-interface.md)
 - [Mold pattern v1 test contract](contracts/mold-pattern-v1.properties)
 
 ## Shared vocabulary
