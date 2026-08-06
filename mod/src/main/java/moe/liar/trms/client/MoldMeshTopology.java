@@ -3,6 +3,7 @@ package moe.liar.trms.client;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.Direction;
+import moe.liar.trms.common.MoldWeaponAssembly;
 
 /**
  * Texture- and Minecraft-independent topology for a mold mesh.
@@ -123,6 +124,22 @@ public final class MoldMeshTopology {
                 }
             }
         }
+        return List.copyOf(quads);
+    }
+
+    /** Builds the one-pixel-wide, one-pixel-thick, ten-pixel-long handle used by assembled weapons. */
+    public static List<Quad> buildHandle(int connectionX, int connectionZ) {
+        float x0 = connectionX;
+        float x1 = connectionX + MoldWeaponAssembly.HANDLE_WIDTH;
+        float z0 = connectionZ;
+        float z1 = connectionZ + MoldWeaponAssembly.HANDLE_LENGTH;
+        List<Quad> quads = new ArrayList<>(6);
+        top(quads, x0, z0, x1, z1, MoldWeaponAssembly.HANDLE_THICKNESS);
+        bottom(quads, x0, z0, x1, z1, WEAPON_PART_BASE_Y);
+        west(quads, x0, z0, z1 - z0, WEAPON_PART_BASE_Y, MoldWeaponAssembly.HANDLE_THICKNESS);
+        east(quads, x1, z0, z1 - z0, WEAPON_PART_BASE_Y, MoldWeaponAssembly.HANDLE_THICKNESS);
+        north(quads, x0, z0, x1 - x0, WEAPON_PART_BASE_Y, MoldWeaponAssembly.HANDLE_THICKNESS);
+        south(quads, x0, z1, x1 - x0, WEAPON_PART_BASE_Y, MoldWeaponAssembly.HANDLE_THICKNESS);
         return List.copyOf(quads);
     }
 

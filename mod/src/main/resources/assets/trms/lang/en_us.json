@@ -1,4 +1,9 @@
 {
+  "item.trms.assembled_weapon": "Assembled Weapon",
+  "item.trms.assembled_weapon.material": "Material: %s",
+  "item.trms.assembled_weapon.no_points": "This casting has no valid handle connection point.",
+  "screen.trms.weapon_assembly": "Assemble Weapon",
+  "screen.trms.weapon_assembly.help": "Left click a green point to assemble; right click or Esc to cancel",
   "block.trms.mold": "Ceramic Mold",
   "item.trms.mold": "Ceramic Mold",
   "block.trms.mold_blank": "Mold Blank",

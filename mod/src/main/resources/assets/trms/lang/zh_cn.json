@@ -1,4 +1,9 @@
 {
+  "item.trms.assembled_weapon": "完整武器",
+  "item.trms.assembled_weapon.material": "材料：%s",
+  "item.trms.assembled_weapon.no_points": "该铸件没有可用的木柄连接点。",
+  "screen.trms.weapon_assembly": "装配武器",
+  "screen.trms.weapon_assembly.help": "左键选择绿色连接点装配；右键或 Esc 取消",
   "block.trms.mold": "陶瓷模具",
   "item.trms.mold": "陶瓷模具",
   "block.trms.mold_blank": "模具胚",

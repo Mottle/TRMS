@@ -1,5 +1,6 @@
 package moe.liar.trms.client;
 
+import net.minecraft.client.Minecraft;
 import moe.liar.trms.common.TrmsProtocol;
 import net.neoforged.neoforge.client.network.event.RegisterClientPayloadHandlersEvent;
 import net.neoforged.neoforge.network.handling.IPayloadContext;
@@ -31,6 +32,14 @@ public final class TrmsHandshake {
                 CarveMoldPayload.STREAM_CODEC,
                 TrmsHandshake::rejectUnexpectedClientSideCarve
         );
+        var assembly = event.registrar(TrmsProtocol.CARVING_TRANSPORT_VERSION);
+        assembly.playToServer(AssemblyStartPayload.TYPE, AssemblyStartPayload.STREAM_CODEC,
+                TrmsHandshake::rejectUnexpectedAssemblyStart);
+        assembly.playToServer(AssemblyConfirmPayload.TYPE, AssemblyConfirmPayload.STREAM_CODEC,
+                TrmsHandshake::rejectUnexpectedAssemblyConfirm);
+        assembly.playToServer(AssemblyCancelPayload.TYPE, AssemblyCancelPayload.STREAM_CODEC,
+                TrmsHandshake::rejectUnexpectedAssemblyCancel);
+        assembly.playToClient(AssemblyBeginPayload.TYPE, AssemblyBeginPayload.STREAM_CODEC);
     }
 
     public static void registerClientHandlers(RegisterClientPayloadHandlersEvent event) {
@@ -44,6 +53,8 @@ public final class TrmsHandshake {
                     new ProtocolResponse(challenge.nonce(), TrmsProtocol.VERSION)
             );
         });
+        event.register(AssemblyBeginPayload.TYPE, (payload, context) ->
+                context.enqueueWork(() -> Minecraft.getInstance().setScreen(new WeaponAssemblyScreen(payload))));
     }
 
     private static void rejectUnexpectedClientSideResponse(
@@ -62,5 +73,17 @@ public final class TrmsHandshake {
         throw new IllegalStateException(
                 "TRMS carve_mold is serverbound and must never be handled by the client."
         );
+    }
+
+    private static void rejectUnexpectedAssemblyStart(AssemblyStartPayload payload, IPayloadContext context) {
+        throw new IllegalStateException("TRMS assembly_start is serverbound and must never be handled by the client.");
+    }
+
+    private static void rejectUnexpectedAssemblyConfirm(AssemblyConfirmPayload payload, IPayloadContext context) {
+        throw new IllegalStateException("TRMS assembly_confirm is serverbound and must never be handled by the client.");
+    }
+
+    private static void rejectUnexpectedAssemblyCancel(AssemblyCancelPayload payload, IPayloadContext context) {
+        throw new IllegalStateException("TRMS assembly_cancel is serverbound and must never be handled by the client.");
     }
 }

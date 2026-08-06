@@ -43,6 +43,10 @@ public final class TrmsClientMod {
             COMPONENTS.registerComponentType("weapon_part", builder -> builder
                     .persistent(WeaponPartData.CODEC)
                     .networkSynchronized(WeaponPartData.STREAM_CODEC));
+    public static final DeferredHolder<net.minecraft.core.component.DataComponentType<?>, net.minecraft.core.component.DataComponentType<AssembledWeaponData>> ASSEMBLED_WEAPON =
+            COMPONENTS.registerComponentType("assembled_weapon", builder -> builder
+                    .persistent(AssembledWeaponData.CODEC)
+                    .networkSynchronized(AssembledWeaponData.STREAM_CODEC));
 
     public static final DeferredHolder<Block, MoldBlock> MOLD = BLOCKS.registerBlock(
             "mold",
@@ -85,6 +89,10 @@ public final class TrmsClientMod {
             "weapon_part",
             properties -> new Item(properties.stacksTo(1))
     );
+    public static final DeferredHolder<Item, Item> ASSEMBLED_WEAPON_ITEM = ITEMS.registerItem(
+            "assembled_weapon",
+            properties -> new AssembledWeaponItem(properties)
+    );
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<MoldBlockEntity>> MOLD_BLOCK_ENTITY =
             BLOCK_ENTITIES.register("mold", () -> new BlockEntityType<>(MoldBlockEntity::new,
                     MOLD.get(), MOLD_BLANK.get()));
@@ -104,6 +112,9 @@ public final class TrmsClientMod {
         modBus.addListener(TrmsHandshake::registerPayloads);
         modBus.addListener(TrmsHandshake::registerClientHandlers);
         NeoForge.EVENT_BUS.addListener(TrmsCarvingInput::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickBlock);
+        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickItem);
+        NeoForge.EVENT_BUS.addListener(TrmsAssemblyInput::onRightClickEmpty);
         LOGGER.info("TRMS client mod initialized (protocol v{})", TrmsProtocol.VERSION);
     }
 }

@@ -26,6 +26,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
 import net.neoforged.neoforge.client.model.ao.EnhancedBlockModelLighter;
+import moe.liar.trms.common.MoldWeaponAssembly;
 import org.joml.Vector3f;
 
 /** Pure client quad builder shared by world and item rendering. */
@@ -158,6 +159,11 @@ public final class MoldMeshBuilder {
         return Minecraft.getInstance().getAtlasManager().get(SOLID_METAL_SPRITE);
     }
 
+    public static TextureAtlasSprite currentWoodSprite() {
+        return Minecraft.getInstance().getAtlasManager().get(new SpriteId(
+                BLOCK_ATLAS_TEXTURE, Identifier.withDefaultNamespace("block/oak_planks")));
+    }
+
     /** Applies the directional presentation turn to block-local world geometry. */
     static void rotateWorldPresentation(PoseStack poseStack) {
         rotateWorldPresentation(poseStack, Direction.NORTH);
@@ -182,6 +188,11 @@ public final class MoldMeshBuilder {
     /** Builds the standalone closed silhouette of a cooled casting for item rendering. */
     public static Mesh buildWeaponPart(MoldPattern pattern, TextureAtlasSprite sprite) {
         return build(MoldMeshTopology.buildWeaponPart(pattern), sprite, RenderTypes.entitySolid(sprite.atlasLocation()));
+    }
+
+    public static Mesh buildHandle(int connectionX, int connectionZ, TextureAtlasSprite sprite) {
+        return build(MoldMeshTopology.buildHandle(connectionX, connectionZ), sprite,
+                RenderTypes.entitySolid(sprite.atlasLocation()));
     }
 
     /**
@@ -424,6 +435,36 @@ public final class MoldMeshBuilder {
         poseStack.translate(0.5F, 0.5F, 0.5F);
         poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
         poseStack.translate(-presentation.centerX(), -0.03125F, -presentation.centerZ());
+    }
+
+    /** Centers an assembled casting and its handle using their combined integer bounds. */
+    static void centerAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
+                                               int connectionX, int connectionZ, boolean expandToGui) {
+        int minimumX = MoldPattern.INNER_SIZE + 1;
+        int maximumX = 0;
+        int minimumZ = MoldPattern.INNER_SIZE + 1;
+        int maximumZ = 0;
+        for (int z = 1; z <= MoldPattern.INNER_SIZE; z++) {
+            for (int x = 1; x <= MoldPattern.INNER_SIZE; x++) {
+                if (pattern.isCarved(x, z)) {
+                    minimumX = Math.min(minimumX, x);
+                    maximumX = Math.max(maximumX, x + 1);
+                    minimumZ = Math.min(minimumZ, z);
+                    maximumZ = Math.max(maximumZ, z + 1);
+                }
+            }
+        }
+        minimumX = Math.min(minimumX, connectionX);
+        maximumX = Math.max(maximumX, connectionX + MoldWeaponAssembly.HANDLE_WIDTH);
+        minimumZ = Math.min(minimumZ, connectionZ);
+        maximumZ = Math.max(maximumZ, connectionZ + MoldWeaponAssembly.HANDLE_LENGTH);
+        int longest = Math.max(maximumX - minimumX, maximumZ - minimumZ);
+        float scale = expandToGui ? MoldPattern.INNER_SIZE / (float) longest : 1.0F;
+        poseStack.translate(0.5F, 0.5F, 0.5F);
+        poseStack.scale(scale, scale, scale);
+        poseStack.translate(-(minimumX + maximumX) / 32.0F,
+                -MoldWeaponAssembly.HANDLE_THICKNESS / 32.0F,
+                -(minimumZ + maximumZ) / 32.0F);
     }
 
     /**
