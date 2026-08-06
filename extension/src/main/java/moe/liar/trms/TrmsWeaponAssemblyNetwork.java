@@ -1,12 +1,13 @@
 package moe.liar.trms;
 
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import moe.liar.horizon.extension.ExtensionConcurrencyContext;
 import moe.liar.horizon.extension.ExtensionContext;
 import moe.liar.horizon.extension.ExtensionNetworkContext;
+import moe.liar.horizon.extension.event.PlayerQuitEvent;
+import moe.liar.horizon.extension.event.ServerTickEvent;
+import moe.liar.horizon.extension.event.entity.LivingEvent;
+import moe.liar.horizon.extension.event.player.PlayerEvent;
 import moe.liar.horizon.extension.network.PayloadRequirement;
 import moe.liar.trms.common.MoldWeaponAssembly;
 import moe.liar.trms.common.MoldWeaponAssembly.ConnectionPoint;
@@ -23,8 +24,10 @@ import net.minecraft.world.item.Items;
 /** Server-authoritative sessions for combining a casting and a wooden handle. */
 final class TrmsWeaponAssemblyNetwork {
     private static final long SESSION_TICKS = 1_200L;
+    private static final long START_COOLDOWN_TICKS = 4L;
     private static final int MAX_SESSIONS = 4_096;
-    private static final Map<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+    private static final TrmsWeaponAssemblySessions<TrmsWeaponPart> SESSIONS =
+            new TrmsWeaponAssemblySessions<>(SESSION_TICKS, START_COOLDOWN_TICKS, MAX_SESSIONS);
     private static ExtensionNetworkContext network;
 
     private TrmsWeaponAssemblyNetwork() {
@@ -43,6 +46,19 @@ final class TrmsWeaponAssemblyNetwork {
         network.registerServerboundPayload(TrmsAssemblyCancelPayload.TYPE, TrmsAssemblyCancelPayload.STREAM_CODEC,
                 ConnectionProtocol.PLAY, TrmsProtocol.CARVING_TRANSPORT_VERSION, PayloadRequirement.REQUIRED,
                 TrmsAssemblyCancelPayload.class, (listener, payload) -> receiveCancel(context.concurrency(), listener, payload));
+        context.events().listen(PlayerQuitEvent.class,
+                event -> SESSIONS.remove(event.player().getUUID()));
+        context.events().listen(LivingEvent.Death.class, event -> {
+            if (event.livingEntity() instanceof ServerPlayer player) {
+                SESSIONS.remove(player.getUUID());
+            }
+        });
+        context.events().listen(PlayerEvent.Respawn.class, event -> {
+            SESSIONS.remove(event.oldPlayer().getUUID());
+            SESSIONS.remove(event.player().getUUID());
+        });
+        context.events().listen(ServerTickEvent.class,
+                event -> SESSIONS.purgeExpired(Integer.toUnsignedLong(event.tickCount())));
     }
 
     private static void receiveStart(ExtensionConcurrencyContext concurrency, ServerCommonPacketListenerImpl listener) {
@@ -53,9 +69,7 @@ final class TrmsWeaponAssemblyNetwork {
 
     private static void startOnOwner(ServerPlayer player) {
         if (player.isSpectator() || !player.isCrouching()) return;
-        long now = player.level().getGameTime();
-        SESSIONS.entrySet().removeIf(entry -> entry.getValue().expiresAt() <= now);
-        if (SESSIONS.size() >= MAX_SESSIONS) return;
+        long now = currentServerTick(player);
         ItemStack casting = player.getMainHandItem();
         ItemStack stick = player.getOffhandItem();
         TrmsWeaponPart part = casting.get(TrmsContent.weaponPartComponent());
@@ -67,13 +81,14 @@ final class TrmsWeaponAssemblyNetwork {
                     .withStyle(ChatFormatting.RED), true);
             return;
         }
-        UUID sessionId = UUID.randomUUID();
-        Session session = new Session(sessionId, player.getUUID(), player.getId(), part, now + SESSION_TICKS);
-        SESSIONS.put(player.getUUID(), session);
+        TrmsWeaponAssemblySessions.BeginResult<TrmsWeaponPart> begin =
+                SESSIONS.begin(player.getUUID(), player.getId(), part, now);
+        if (!begin.created()) return;
+        TrmsWeaponAssemblySessions.Session<TrmsWeaponPart> session = begin.session();
         List<TrmsAssemblyBeginPayload.TrmsAssemblyPoint> networkPoints = points.stream()
                 .map(point -> new TrmsAssemblyBeginPayload.TrmsAssemblyPoint((byte) point.x(), (byte) point.z()))
                 .toList();
-        network.sendRequired(player, new TrmsAssemblyBeginPayload(sessionId, part.pattern(), part.material(), networkPoints));
+        network.sendRequired(player, new TrmsAssemblyBeginPayload(session.id(), part.pattern(), part.material(), networkPoints));
     }
 
     private static void receiveConfirm(ExtensionConcurrencyContext concurrency, ServerCommonPacketListenerImpl listener,
@@ -84,11 +99,11 @@ final class TrmsWeaponAssemblyNetwork {
     }
 
     private static void confirmOnOwner(ServerPlayer player, TrmsAssemblyConfirmPayload payload) {
-        Session session = SESSIONS.get(player.getUUID());
+        TrmsWeaponAssemblySessions.Session<TrmsWeaponPart> session = SESSIONS.get(player.getUUID());
         if (session == null || !session.id().equals(payload.sessionId())
                 || session.entityId() != player.getId()) return;
-        if (player.isSpectator() || player.level().getGameTime() >= session.expiresAt()) {
-            SESSIONS.remove(player.getUUID(), session);
+        if (player.isSpectator() || currentServerTick(player) >= session.expiresAt()) {
+            SESSIONS.remove(player.getUUID(), session.id());
             return;
         }
         ItemStack casting = player.getMainHandItem();
@@ -100,9 +115,9 @@ final class TrmsWeaponAssemblyNetwork {
         } catch (IllegalArgumentException exception) {
             return;
         }
-        if (!casting.is(TrmsContent.weaponPartItem()) || part == null || !part.equals(session.part())
+        if (!casting.is(TrmsContent.weaponPartItem()) || part == null || !part.equals(session.input())
                 || !stick.is(Items.STICK) || !MoldWeaponAssembly.isLegalConnection(part.pattern().commonPattern(), point.x(), point.z())) {
-            SESSIONS.remove(player.getUUID(), session);
+            SESSIONS.remove(player.getUUID(), session.id());
             return;
         }
 
@@ -111,7 +126,7 @@ final class TrmsWeaponAssemblyNetwork {
                 part.pattern(), part.material(), MoldWeaponAssembly.STICK_MATERIAL, point.x(), point.z()));
         casting.shrink(1);
         stick.shrink(1);
-        SESSIONS.remove(player.getUUID(), session);
+        SESSIONS.remove(player.getUUID(), session.id());
         if (casting.isEmpty()) {
             player.setItemInHand(net.minecraft.world.InteractionHand.MAIN_HAND, result);
         } else if (!player.getInventory().add(result)) {
@@ -124,11 +139,11 @@ final class TrmsWeaponAssemblyNetwork {
         if (!(listener instanceof ServerGamePacketListenerImpl gameListener)) return;
         ServerPlayer player = gameListener.getPlayer();
         concurrency.submitOnRegion(player, () -> {
-            Session session = SESSIONS.get(player.getUUID());
-            if (session != null && session.id().equals(payload.sessionId())) SESSIONS.remove(player.getUUID(), session);
+            SESSIONS.remove(player.getUUID(), payload.sessionId());
         });
     }
 
-    record Session(UUID id, UUID playerId, int entityId, TrmsWeaponPart part, long expiresAt) {
+    private static long currentServerTick(ServerPlayer player) {
+        return Integer.toUnsignedLong(player.level().getServer().getTickCount());
     }
 }
