@@ -32,15 +32,27 @@ final class TrmsContent {
                     .networkSynchronized(TrmsWeaponPart.STREAM_CODEC)
                     .register();
 
+    static final RegistryEntry<DataComponentType<TrmsAssembledWeapon>> ASSEMBLED_WEAPON =
+            REGISTRAR.<TrmsAssembledWeapon>dataComponent("assembled_weapon")
+                    .persistent(TrmsAssembledWeapon.CODEC)
+                    .networkSynchronized(TrmsAssembledWeapon.STREAM_CODEC)
+                    .register();
+
     static final ItemEntry<Item> WEAPON_PART_ITEM = REGISTRAR.item("weapon_part")
+            .properties(properties -> properties.stacksTo(1))
+            .register();
+
+    static final ItemEntry<TrmsAssembledWeaponItem> ASSEMBLED_WEAPON_ITEM = REGISTRAR.item(
+            "assembled_weapon", TrmsAssembledWeaponItem::new)
             .properties(properties -> properties.stacksTo(1))
             .register();
 
     /** Serializer used by the mold-from-blank recipe JSON and sync payload. */
     static final RecipeEntry<SmeltingRecipe> MOLD_SMELTING_SERIALIZER =
             REGISTRAR.<SmeltingRecipe>recipe("mold_smelting")
-                    .serializer(TrmsMoldSmeltingRecipe.SERIALIZER)
-                    .registerSerializer();
+                    .codec(TrmsMoldSmeltingRecipe.SERIALIZER_CODEC,
+                            TrmsMoldSmeltingRecipe.SERIALIZER_STREAM_CODEC)
+                    .registerTypeAndSerializer();
 
     static final BlockEntry<TrmsMoldBlock, BlockEntity, AbstractContainerMenu> MOLD =
             REGISTRAR.block("mold", (properties, key) ->
@@ -104,6 +116,14 @@ final class TrmsContent {
 
     static Item weaponPartItem() {
         return WEAPON_PART_ITEM.get();
+    }
+
+    static DataComponentType<TrmsAssembledWeapon> assembledWeaponComponent() {
+        return ASSEMBLED_WEAPON.get();
+    }
+
+    static Item assembledWeaponItem() {
+        return ASSEMBLED_WEAPON_ITEM.get();
     }
 
     private TrmsContent() {

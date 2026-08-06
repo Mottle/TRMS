@@ -15,6 +15,7 @@ public final class TrmsExtension implements HorizonExtension {
         TrmsContent.register(context);
         TrmsProtocolHandshake.register(context);
         TrmsMoldCarvingNetwork.register(context);
+        TrmsWeaponAssemblyNetwork.register(context);
         LOGGER.info("TRMS Extension initialized (protocol v{})", TrmsProtocol.VERSION);
     }
 }
