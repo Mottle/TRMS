@@ -48,10 +48,20 @@ public final class AssembledWeaponSpecialModelRenderer implements SpecialModelRe
         MoldMeshBuilder.Mesh handle = handleCache.computeIfAbsent(handleKey,
                 ignored -> MoldMeshBuilder.buildHandle(data.connectionX(), data.connectionZ(), woodSprite));
         poseStack.pushPose();
-        MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(), data.connectionX(), data.connectionZ(),
-                presentation == Presentation.GUI);
-        if (presentation == Presentation.FIRST_PERSON) {
-            poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+        switch (presentation) {
+            case GUI -> MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
+                    data.connectionX(), data.connectionZ(), true);
+            case FIRST_PERSON -> {
+                MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
+                        data.connectionX(), data.connectionZ(), false);
+                poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+            }
+            case FIXED -> MoldMeshBuilder.centerFixedAssembledWeaponGeometry(poseStack, data.pattern(),
+                    data.connectionX(), data.connectionZ());
+            case GROUND -> MoldMeshBuilder.centerGroundAssembledWeaponGeometry(poseStack, data.pattern(),
+                    data.connectionX(), data.connectionZ());
+            case THIRD_PERSON, STANDARD -> MoldMeshBuilder.centerAssembledWeaponGeometry(poseStack, data.pattern(),
+                    data.connectionX(), data.connectionZ(), false);
         }
         casting.submitTintedItem(poseStack, collector, light, overlay, visual.baseColor());
         handle.submitTintedItem(poseStack, collector, light, overlay, 0xFF9A683B);
@@ -101,5 +111,21 @@ public final class AssembledWeaponSpecialModelRenderer implements SpecialModelRe
         }
     }
 
-    private enum Presentation { GUI, FIRST_PERSON, THIRD_PERSON, STANDARD }
+    public record FixedUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<FixedUnbaked> CODEC = MapCodec.unit(new FixedUnbaked());
+        @Override public MapCodec<FixedUnbaked> type() { return CODEC; }
+        @Override public AssembledWeaponSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new AssembledWeaponSpecialModelRenderer(Presentation.FIXED);
+        }
+    }
+
+    public record GroundUnbaked() implements SpecialModelRenderer.Unbaked<ItemStack> {
+        public static final MapCodec<GroundUnbaked> CODEC = MapCodec.unit(new GroundUnbaked());
+        @Override public MapCodec<GroundUnbaked> type() { return CODEC; }
+        @Override public AssembledWeaponSpecialModelRenderer bake(SpecialModelRenderer.BakingContext context) {
+            return new AssembledWeaponSpecialModelRenderer(Presentation.GROUND);
+        }
+    }
+
+    private enum Presentation { GUI, FIRST_PERSON, THIRD_PERSON, FIXED, GROUND, STANDARD }
 }

@@ -3,9 +3,11 @@
     "type": "minecraft:select",
     "property": "minecraft:display_context",
     "cases": [
+      {"when": ["ground"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_ground_special"}}},
       {"when": ["gui"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_gui_special"}}},
       {"when": ["firstperson_lefthand", "firstperson_righthand"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_first_person_special"}}},
-      {"when": ["thirdperson_lefthand", "thirdperson_righthand"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_third_person_special"}}}
+      {"when": ["thirdperson_lefthand", "thirdperson_righthand"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_third_person_special"}}},
+      {"when": ["fixed"], "model": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_fixed_special"}}}
     ],
     "fallback": {"type": "minecraft:special", "base": "trms:item/assembled_weapon", "model": {"type": "trms:assembled_weapon_special"}}
   }

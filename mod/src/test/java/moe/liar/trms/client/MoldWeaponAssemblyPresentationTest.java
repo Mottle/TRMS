@@ -28,4 +28,19 @@ class MoldWeaponAssemblyPresentationTest {
         assertEquals(1.0F, maxY - minY);
         assertEquals(10.0F, maxZ - minZ);
     }
+
+    @Test
+    void combinedPresentationIncludesTheEntireCastingAndHandleBounds() {
+        MoldPattern pattern = MoldPattern.EMPTY.predictCarve(6, 6).orElseThrow();
+
+        MoldMeshBuilder.AssembledWeaponItemPresentation standard =
+                MoldMeshBuilder.assembledWeaponItemPresentation(pattern, 6, 7, false);
+        MoldMeshBuilder.AssembledWeaponItemPresentation gui =
+                MoldMeshBuilder.assembledWeaponItemPresentation(pattern, 6, 7, true);
+
+        assertEquals(13.0F / 32.0F, standard.centerX());
+        assertEquals(23.0F / 32.0F, standard.centerZ());
+        assertEquals(1.0F, standard.uniformScale());
+        assertEquals(14.0F / 11.0F, gui.uniformScale());
+    }
 }

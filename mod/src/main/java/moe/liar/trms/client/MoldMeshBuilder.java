@@ -440,6 +440,41 @@ public final class MoldMeshBuilder {
     /** Centers an assembled casting and its handle using their combined integer bounds. */
     static void centerAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
                                                int connectionX, int connectionZ, boolean expandToGui) {
+        AssembledWeaponItemPresentation presentation = assembledWeaponItemPresentation(
+                pattern, connectionX, connectionZ, expandToGui);
+        poseStack.translate(0.5F, 0.5F, 0.5F);
+        poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
+        poseStack.translate(-presentation.centerX(),
+                -MoldWeaponAssembly.HANDLE_THICKNESS / 32.0F,
+                -presentation.centerZ());
+    }
+
+    /** Maps the complete casting and handle to the vertical plane used by frames. */
+    static void centerFixedAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
+                                                    int connectionX, int connectionZ) {
+        AssembledWeaponItemPresentation presentation = assembledWeaponItemPresentation(
+                pattern, connectionX, connectionZ, false);
+        poseStack.translate(0.5F - presentation.centerX(),
+                0.5F + presentation.centerZ(), 0.46875F);
+        poseStack.mulPose(Axis.XP.rotationDegrees(90.0F));
+    }
+
+    /** Fits the complete casting and handle into raw ground-item model space. */
+    static void centerGroundAssembledWeaponGeometry(PoseStack poseStack, MoldPattern pattern,
+                                                     int connectionX, int connectionZ) {
+        AssembledWeaponItemPresentation presentation = assembledWeaponItemPresentation(
+                pattern, connectionX, connectionZ, true);
+        poseStack.translate(0.5F, 0.5F, 0.5F);
+        poseStack.scale(presentation.uniformScale(), presentation.uniformScale(), presentation.uniformScale());
+        poseStack.translate(-presentation.centerX(),
+                -MoldWeaponAssembly.HANDLE_THICKNESS / 32.0F,
+                -presentation.centerZ());
+        rotateYAround(poseStack, 180.0F, 0.5F, 0.5F);
+    }
+
+    static AssembledWeaponItemPresentation assembledWeaponItemPresentation(MoldPattern pattern,
+                                                                             int connectionX, int connectionZ,
+                                                                             boolean expandToGui) {
         int minimumX = MoldPattern.INNER_SIZE + 1;
         int maximumX = 0;
         int minimumZ = MoldPattern.INNER_SIZE + 1;
@@ -454,18 +489,21 @@ public final class MoldMeshBuilder {
                 }
             }
         }
+        if (maximumX == 0) {
+            throw new IllegalArgumentException("An assembled weapon requires a non-empty pattern");
+        }
         minimumX = Math.min(minimumX, connectionX);
         maximumX = Math.max(maximumX, connectionX + MoldWeaponAssembly.HANDLE_WIDTH);
         minimumZ = Math.min(minimumZ, connectionZ);
         maximumZ = Math.max(maximumZ, connectionZ + MoldWeaponAssembly.HANDLE_LENGTH);
         int longest = Math.max(maximumX - minimumX, maximumZ - minimumZ);
-        float scale = expandToGui ? MoldPattern.INNER_SIZE / (float) longest : 1.0F;
-        poseStack.translate(0.5F, 0.5F, 0.5F);
-        poseStack.scale(scale, scale, scale);
-        poseStack.translate(-(minimumX + maximumX) / 32.0F,
-                -MoldWeaponAssembly.HANDLE_THICKNESS / 32.0F,
-                -(minimumZ + maximumZ) / 32.0F);
+        return new AssembledWeaponItemPresentation(
+                (minimumX + maximumX) / 32.0F,
+                (minimumZ + maximumZ) / 32.0F,
+                expandToGui ? MoldPattern.INNER_SIZE / (float) longest : 1.0F);
     }
+
+    record AssembledWeaponItemPresentation(float centerX, float centerZ, float uniformScale) {}
 
     /**
      * Moves a third-person casting five model pixels down from the centered

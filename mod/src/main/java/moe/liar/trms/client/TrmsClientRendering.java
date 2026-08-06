@@ -46,5 +46,9 @@ public final class TrmsClientRendering {
                 AssembledWeaponSpecialModelRenderer.FirstPersonUnbaked.CODEC);
         event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "assembled_weapon_third_person_special"),
                 AssembledWeaponSpecialModelRenderer.ThirdPersonUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "assembled_weapon_fixed_special"),
+                AssembledWeaponSpecialModelRenderer.FixedUnbaked.CODEC);
+        event.register(Identifier.fromNamespaceAndPath(TrmsClientMod.MOD_ID, "assembled_weapon_ground_special"),
+                AssembledWeaponSpecialModelRenderer.GroundUnbaked.CODEC);
     }
 }
