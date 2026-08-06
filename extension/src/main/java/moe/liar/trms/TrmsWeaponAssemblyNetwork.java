@@ -144,6 +144,10 @@ final class TrmsWeaponAssemblyNetwork {
     }
 
     private static long currentServerTick(ServerPlayer player) {
-        return Integer.toUnsignedLong(player.level().getServer().getTickCount());
+        // Horizon's region-threaded server intentionally does not implement
+        // the global MinecraftServer tick counter.  The level clock is
+        // monotonic, persisted with the world, and safe to read on the
+        // player's owning region thread.
+        return player.level().getGameTime();
     }
 }
