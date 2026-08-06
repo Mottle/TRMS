@@ -2,7 +2,6 @@ package moe.liar.trms.client;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
@@ -54,7 +53,7 @@ class MoldMeshTopologyTest {
     }
 
     @Test
-    void lightingProxiesLiftAllInteriorHorizontalSurfacesJustAboveTheRimPlane() {
+    void lightingUsesTheActualSubmittedGeometryWithoutHeightProxies() {
         MoldPattern pattern = carve(4, 4);
         MoldMeshTopology.Quad floor = MoldMeshTopology.buildWorld(pattern).stream()
                 .filter(quad -> quad.ny() > 0.0F && minY(quad) == MoldMeshTopology.CAVITY_FLOOR_Y)
@@ -67,17 +66,10 @@ class MoldMeshTopologyTest {
         MoldMeshTopology.Quad wall = MoldMeshTopology.buildWorld(pattern).stream()
                 .filter(quad -> quad.ny() == 0.0F).findFirst().orElseThrow();
 
-        float expectedSampleHeight = MoldMeshTopology.RIM_SURFACE_Y + 0.01F;
-        assertTopHeight(MoldMeshBuilder.lightingProxy(floor), expectedSampleHeight);
-        assertTopHeight(MoldMeshBuilder.lightingProxy(fillTop), expectedSampleHeight);
-        assertTopHeight(MoldMeshBuilder.lightingProxy(solidTop), expectedSampleHeight);
-        assertTopHeight(MoldMeshBuilder.lightingLightProxy(floor), MoldMeshTopology.RIM_SURFACE_Y);
-        assertTopHeight(MoldMeshBuilder.lightingLightProxy(fillTop), MoldMeshTopology.RIM_SURFACE_Y);
-        assertTopHeight(MoldMeshBuilder.lightingLightProxy(solidTop), MoldMeshTopology.RIM_SURFACE_Y);
-        assertSame(wall, MoldMeshBuilder.lightingProxy(wall),
-                "vertical cavity walls retain their physical directional shadowing");
-        assertSame(wall, MoldMeshBuilder.lightingLightProxy(wall),
-                "vertical cavity light samples retain their physical directional shadowing");
+        assertEquals(MoldMeshTopology.CAVITY_FLOOR_Y, minY(floor));
+        assertEquals(MoldMeshTopology.FILL_SURFACE_Y, minY(fillTop));
+        assertEquals(MoldMeshTopology.RIM_SURFACE_Y, minY(solidTop));
+        assertEquals(0.0F, wall.ny());
     }
 
     @Test
@@ -349,10 +341,4 @@ class MoldMeshTopologyTest {
         return Math.max(Math.max(quad.z0(), quad.z1()), Math.max(quad.z2(), quad.z3()));
     }
 
-    private static void assertTopHeight(MoldMeshTopology.Quad quad, float expectedY) {
-        assertEquals(expectedY, quad.y0());
-        assertEquals(expectedY, quad.y1());
-        assertEquals(expectedY, quad.y2());
-        assertEquals(expectedY, quad.y3());
-    }
 }

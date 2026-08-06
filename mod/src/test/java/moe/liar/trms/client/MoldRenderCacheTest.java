@@ -26,10 +26,31 @@ class MoldRenderCacheTest {
     }
 
     @Test
+    void samplesNeighbourhoodFingerprintAtMostOncePerGameTick() {
+        MoldRenderCache cache = new MoldRenderCache();
+        AtomicInteger captures = new AtomicInteger();
+
+        assertEquals(7L, cache.lightingFingerprint(10L, () -> {
+            captures.incrementAndGet();
+            return 7L;
+        }));
+        assertEquals(7L, cache.lightingFingerprint(10L, () -> {
+            captures.incrementAndGet();
+            return 8L;
+        }));
+        assertEquals(8L, cache.lightingFingerprint(11L, () -> {
+            captures.incrementAndGet();
+            return 8L;
+        }));
+
+        assertEquals(2, captures.get());
+    }
+
+    @Test
     void retainsLightingUntilOneOfItsRenderInputsChanges() {
         MoldRenderCache cache = new MoldRenderCache();
         AtomicInteger captures = new AtomicInteger();
-        Supplier<MoldMeshBuilder.WorldLighting> capture = () -> {
+        Supplier<SpecialWorldLighting.Result> capture = () -> {
             captures.incrementAndGet();
             return null;
         };
@@ -41,7 +62,7 @@ class MoldRenderCacheTest {
         cache.worldLighting(MoldPattern.EMPTY, 1L, 43, null, Direction.WEST, capture);
 
         assertEquals(4, captures.get(),
-                "only the unchanged second extraction may reuse the sampled lighting");
+                "only the unchanged second extraction may reuse the sampled lighting fingerprint");
     }
 
     @Test
@@ -77,7 +98,7 @@ class MoldRenderCacheTest {
     void fillLightingUsesTheSameBoundedInvalidationRulesAsCeramicLighting() {
         MoldRenderCache cache = new MoldRenderCache();
         AtomicInteger captures = new AtomicInteger();
-        Supplier<MoldMeshBuilder.WorldLighting> capture = () -> {
+        Supplier<SpecialWorldLighting.Result> capture = () -> {
             captures.incrementAndGet();
             return null;
         };

@@ -46,4 +46,17 @@ class MoldBlockStateResourceTest {
             }
         }
     }
+
+    @Test
+    void leavesTheInteriorBaseFaceToTheDynamicWorldMesh() throws IOException {
+        try (InputStream resource = getClass().getResourceAsStream("/assets/trms/models/block/mold.json")) {
+            assertNotNull(resource, "mold block model resource must be packaged for the client");
+            JsonObject model = JsonParser.parseString(
+                    new String(resource.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject baseFaces = model.getAsJsonArray("elements").get(0)
+                    .getAsJsonObject().getAsJsonObject("faces");
+            assertFalse(baseFaces.has("up"),
+                    "the dynamic cavity floor must be the only owner of the interior base face");
+        }
+    }
 }
