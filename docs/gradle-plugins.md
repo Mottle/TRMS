@@ -2,7 +2,7 @@
 
 Horizon ships two development plugins for extension and plugin projects. They are
 versioned with the server and API artifacts, for example
-`26.1.2-tiramisu.7-SNAPSHOT`.
+`26.1.2-tiramisu.8-SNAPSHOT`.
 
 ## Plugin Management
 
@@ -42,11 +42,11 @@ of being copied into `run/plugins`.
 
 ```kotlin
 plugins {
-    id("moe.liar.horizon.run-server") version "26.1.2-tiramisu.7-SNAPSHOT"
+    id("moe.liar.horizon.run-server") version "26.1.2-tiramisu.8-SNAPSHOT"
 }
 
 horizonRun {
-    serverJar.set(layout.projectDirectory.file("server/horizon-paperclip-26.1.2-tiramisu.7-SNAPSHOT.jar"))
+    serverJar.set(layout.projectDirectory.file("server/horizon-paperclip-26.1.2-tiramisu.8-SNAPSHOT.jar"))
     runDirectory.set(layout.projectDirectory.dir("run"))
     acceptEula.set(true)
     jvmArgs.add("-Xmx4G")
@@ -89,15 +89,15 @@ needs the legacy plugin reobfuscation flow.
 ```kotlin
 plugins {
     `java-library`
-    id("moe.liar.horizon.userdev") version "26.1.2-tiramisu.7-SNAPSHOT"
+    id("moe.liar.horizon.userdev") version "26.1.2-tiramisu.8-SNAPSHOT"
 }
 
 horizonUserdev {
-    horizonVersion.set("26.1.2-tiramisu.7-SNAPSHOT")
+    horizonVersion.set("26.1.2-tiramisu.8-SNAPSHOT")
 }
 
 dependencies {
-    compileOnly("moe.liar.horizon:horizon-extension-api:26.1.2-tiramisu.7-SNAPSHOT")
+    compileOnly("moe.liar.horizon:horizon-extension-api:26.1.2-tiramisu.8-SNAPSHOT")
 }
 ```
 

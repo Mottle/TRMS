@@ -10,7 +10,7 @@ artifacts, and extension/plugin development examples:
 For the current Tiramisu development line this is:
 
 ```text
-26.1.2-tiramisu.7-SNAPSHOT
+26.1.2-tiramisu.8-SNAPSHOT
 ```
 
 `mcVersion` tracks the upstream Minecraft/Canvas-compatible version. `horizonSeries`
@@ -23,7 +23,7 @@ The version fields live in `gradle.properties`:
 ```properties
 mcVersion = 26.1.2
 horizonSeries = tiramisu
-horizonPatch = 7
+horizonPatch = 8
 horizonSnapshot = true
 ```
 
@@ -64,6 +64,6 @@ POM dependencies. The runnable-server POM remains an independent valid publicati
 Extension and plugin projects should depend on the matching version, for example:
 
 ```kotlin
-compileOnly("moe.liar.horizon:horizon-extension-api:26.1.2-tiramisu.7-SNAPSHOT")
-compileOnly("moe.liar.horizon:horizon-api:26.1.2-tiramisu.7-SNAPSHOT")
+compileOnly("moe.liar.horizon:horizon-extension-api:26.1.2-tiramisu.8-SNAPSHOT")
+compileOnly("moe.liar.horizon:horizon-api:26.1.2-tiramisu.8-SNAPSHOT")
 ```

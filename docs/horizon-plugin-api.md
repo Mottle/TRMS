@@ -22,7 +22,7 @@ repositories {
 }
 
 dependencies {
-    compileOnly("moe.liar.horizon:horizon-api:26.1.2-tiramisu.7-SNAPSHOT")
+    compileOnly("moe.liar.horizon:horizon-api:26.1.2-tiramisu.8-SNAPSHOT")
 }
 ```
 

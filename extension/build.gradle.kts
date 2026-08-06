@@ -4,14 +4,14 @@ import org.gradle.language.jvm.tasks.ProcessResources
 
 plugins {
     `java-library`
-    id("moe.liar.horizon.userdev") version "26.1.2-tiramisu.7-SNAPSHOT"
-    id("moe.liar.horizon.run-server") version "26.1.2-tiramisu.7-SNAPSHOT"
+    id("moe.liar.horizon.userdev") version "26.1.2-tiramisu.8-SNAPSHOT"
+    id("moe.liar.horizon.run-server") version "26.1.2-tiramisu.8-SNAPSHOT"
 }
 
 group = "moe.liar.horizon.trms"
 val extensionVersion = providers.gradleProperty("extensionVersion").orElse("0.1.0-SNAPSHOT").get()
 val requestedHorizonVersion = providers.gradleProperty("horizonVersion")
-    .orElse("26.1.2-tiramisu.7-SNAPSHOT")
+    .orElse("26.1.2-tiramisu.8-SNAPSHOT")
     .get()
 version = extensionVersion
 

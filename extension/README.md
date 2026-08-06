@@ -2,7 +2,7 @@
 
 `extension` is the authoritative Horizon Extension subproject of the TRMS
 ceramic-mold prototype. It targets Minecraft `26.1.2`, Java 25, and the locally
-published Horizon `26.1.2-tiramisu.7-SNAPSHOT` development bundle. It is an
+published Horizon `26.1.2-tiramisu.8-SNAPSHOT` development bundle. It is an
 Extension, not a Bukkit/Paper plugin, and builds only against artifacts in
 `mavenLocal()`.
 
