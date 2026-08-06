@@ -45,7 +45,17 @@ final class TrmsMoldSmeltingRecipe extends SmeltingRecipe {
 
     @Override
     public RecipeSerializer<SmeltingRecipe> getSerializer() {
-        return SERIALIZER;
+        // Horizon's type-and-serializer registration creates the registry
+        // instance used for recipe sync. Returning the standalone bootstrap
+        // adapter here makes the clientbound recipe packet unable to resolve
+        // a registry id, so always use the registered entry after bootstrap.
+        return TrmsContent.MOLD_SMELTING_SERIALIZER.serializer();
+    }
+
+    /** Keep furnace lookup on the vanilla smelting channel while Horizon owns the JSON id. */
+    @Override
+    public net.minecraft.world.item.crafting.RecipeType<SmeltingRecipe> getType() {
+        return net.minecraft.world.item.crafting.RecipeType.SMELTING;
     }
 
     @Override
