@@ -1,6 +1,7 @@
 package moe.liar.trms.client;
 
 import java.lang.ref.WeakReference;
+import java.util.function.LongSupplier;
 import java.util.function.Supplier;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.core.Direction;
@@ -22,19 +23,21 @@ final class MoldRenderCache {
 
     private MoldPattern lightingPattern = MoldPattern.EMPTY;
     private long lightingRevision = Long.MIN_VALUE;
-    private int lightingCoords = Integer.MIN_VALUE;
+    private long lightingFingerprint = Long.MIN_VALUE;
     private WeakReference<TextureAtlasSprite> lightingSprite = new WeakReference<>(null);
     private Direction lightingFacing;
-    private MoldMeshBuilder.WorldLighting worldLighting;
+    private SpecialWorldLighting.Result worldLighting;
     private boolean hasWorldLighting;
 
     private MoldPattern fillLightingPattern = MoldPattern.EMPTY;
     private long fillLightingRevision = Long.MIN_VALUE;
-    private int fillLightingCoords = Integer.MIN_VALUE;
+    private long fillLightingFingerprint = Long.MIN_VALUE;
     private WeakReference<TextureAtlasSprite> fillLightingSprite = new WeakReference<>(null);
     private Direction fillLightingFacing;
-    private MoldMeshBuilder.WorldLighting fillWorldLighting;
+    private SpecialWorldLighting.Result fillWorldLighting;
     private boolean hasFillWorldLighting;
+    private long fingerprintGameTime = Long.MIN_VALUE;
+    private long cachedFingerprint = Long.MIN_VALUE;
 
     /**
      * Returns the immutable legal-carve layout for the current authoritative
@@ -49,6 +52,15 @@ final class MoldRenderCache {
         return carvingGuide;
     }
 
+    /** Computes the neighbourhood light signature at most once per game tick. */
+    synchronized long lightingFingerprint(long gameTime, LongSupplier capture) {
+        if (gameTime != fingerprintGameTime) {
+            fingerprintGameTime = gameTime;
+            cachedFingerprint = capture.getAsLong();
+        }
+        return cachedFingerprint;
+    }
+
     /**
      * Returns immutable ambient-occlusion data, recapturing it only when a
      * geometry, lighting, facing, or atlas-sprite input changed.
@@ -56,23 +68,23 @@ final class MoldRenderCache {
      * <p>The supplier is intentionally not retained; it may close over the
      * live client level for this one extraction only.</p>
      */
-    synchronized MoldMeshBuilder.WorldLighting worldLighting(
+    synchronized SpecialWorldLighting.Result worldLighting(
             MoldPattern pattern,
             long revision,
-            int lightCoords,
+            long lightingFingerprint,
             TextureAtlasSprite sprite,
             Direction facing,
-            Supplier<MoldMeshBuilder.WorldLighting> capture
+            Supplier<SpecialWorldLighting.Result> capture
     ) {
         if (!hasWorldLighting
                 || !pattern.equals(lightingPattern)
                 || revision != lightingRevision
-                || lightCoords != lightingCoords
+                || lightingFingerprint != this.lightingFingerprint
                 || lightingSprite.get() != sprite
                 || lightingFacing != facing) {
             lightingPattern = pattern;
             lightingRevision = revision;
-            lightingCoords = lightCoords;
+            this.lightingFingerprint = lightingFingerprint;
             lightingSprite = new WeakReference<>(sprite);
             lightingFacing = facing;
             worldLighting = capture.get();
@@ -86,23 +98,23 @@ final class MoldRenderCache {
      * separate from the ceramic cache because the cavity surface has a
      * different topology, but it uses the same invalidation inputs.
      */
-    synchronized MoldMeshBuilder.WorldLighting fillWorldLighting(
+    synchronized SpecialWorldLighting.Result fillWorldLighting(
             MoldPattern pattern,
             long revision,
-            int lightCoords,
+            long lightingFingerprint,
             TextureAtlasSprite sprite,
             Direction facing,
-            Supplier<MoldMeshBuilder.WorldLighting> capture
+            Supplier<SpecialWorldLighting.Result> capture
     ) {
         if (!hasFillWorldLighting
                 || !pattern.equals(fillLightingPattern)
                 || revision != fillLightingRevision
-                || lightCoords != fillLightingCoords
+                || lightingFingerprint != this.fillLightingFingerprint
                 || fillLightingSprite.get() != sprite
                 || fillLightingFacing != facing) {
             fillLightingPattern = pattern;
             fillLightingRevision = revision;
-            fillLightingCoords = lightCoords;
+            this.fillLightingFingerprint = lightingFingerprint;
             fillLightingSprite = new WeakReference<>(sprite);
             fillLightingFacing = facing;
             fillWorldLighting = capture.get();
@@ -118,17 +130,19 @@ final class MoldRenderCache {
         carvingGuide = MoldCarvingGuide.Layout.EMPTY;
         lightingPattern = MoldPattern.EMPTY;
         lightingRevision = Long.MIN_VALUE;
-        lightingCoords = Integer.MIN_VALUE;
+        lightingFingerprint = Long.MIN_VALUE;
         lightingSprite = new WeakReference<>(null);
         lightingFacing = null;
         worldLighting = null;
         hasWorldLighting = false;
         fillLightingPattern = MoldPattern.EMPTY;
         fillLightingRevision = Long.MIN_VALUE;
-        fillLightingCoords = Integer.MIN_VALUE;
+        fillLightingFingerprint = Long.MIN_VALUE;
         fillLightingSprite = new WeakReference<>(null);
         fillLightingFacing = null;
         fillWorldLighting = null;
         hasFillWorldLighting = false;
+        fingerprintGameTime = Long.MIN_VALUE;
+        cachedFingerprint = Long.MIN_VALUE;
     }
 }

@@ -1,7 +1,6 @@
 package moe.liar.trms.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.QuadInstance;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.math.Axis;
 import java.util.ArrayList;
@@ -10,24 +9,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockAndTintGetter;
-import net.minecraft.client.renderer.block.BlockModelLighter;
-import net.minecraft.client.renderer.chunk.ChunkSectionLayer;
 import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.OverlayTexture;
-import net.minecraft.client.resources.model.geometry.BakedQuad;
 import net.minecraft.client.resources.model.sprite.SpriteId;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.ARGB;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.client.model.ao.EnhancedBlockModelLighter;
 import moe.liar.trms.common.MoldWeaponAssembly;
-import org.joml.Vector3f;
 
 /** Pure client quad builder shared by world and item rendering. */
 public final class MoldMeshBuilder {
@@ -178,7 +173,7 @@ public final class MoldMeshBuilder {
     }
 
     public static Mesh buildWorld(MoldPattern pattern, TextureAtlasSprite sprite) {
-        return build(MoldMeshTopology.buildWorld(pattern), sprite, RenderTypes.entitySolid(sprite.atlasLocation()));
+        return build(MoldMeshTopology.buildWorld(pattern), sprite, SpecialWorldRenderTypes.solid().renderType());
     }
 
     public static Mesh buildItem(MoldPattern pattern, TextureAtlasSprite sprite) {
@@ -285,7 +280,7 @@ public final class MoldMeshBuilder {
         }
 
         public void submitWorld(PoseStack poseStack, SubmitNodeCollector collector, int light,
-                                WorldLighting lighting) {
+                                SpecialWorldLighting.Result lighting) {
             collector.submitCustomGeometry(poseStack, renderType,
                     (pose, vertices) -> render(pose, vertices, light, OverlayTexture.NO_OVERLAY,
                             1.0f / 16.0f, lighting, 0xFFFFFFFF));
@@ -296,7 +291,7 @@ public final class MoldMeshBuilder {
          * occlusion and light coordinates as the ceramic mesh.
          */
         public void submitTintedWorld(PoseStack poseStack, SubmitNodeCollector collector, int light,
-                                      WorldLighting lighting, int color) {
+                                      SpecialWorldLighting.Result lighting, int color) {
             collector.submitCustomGeometry(poseStack, renderType,
                     (pose, vertices) -> render(pose, vertices, light, OverlayTexture.NO_OVERLAY,
                             1.0f / 16.0f, lighting, color));
@@ -396,7 +391,7 @@ public final class MoldMeshBuilder {
         }
 
         private void render(PoseStack.Pose pose, VertexConsumer vertices, int light, int overlay, float scale,
-                            WorldLighting lighting, int tint) {
+                            SpecialWorldLighting.Result lighting, int tint) {
             for (int faceIndex = 0; faceIndex < faces.size(); faceIndex++) {
                 Face face = faces.get(faceIndex);
                 for (int index = 0; index < 4; index++) {
@@ -603,41 +598,23 @@ public final class MoldMeshBuilder {
         }
     }
 
-    /** Per-vertex world lighting sampled by the same lighter as static block models. */
-    public static final class WorldLighting {
-        private final int[] colors;
-        private final int[] lights;
-
-        private WorldLighting(int[] colors, int[] lights) {
-            this.colors = colors;
-            this.lights = lights;
-        }
-
-        private int color(int faceIndex, int vertexIndex) {
-            return colors[faceIndex * 4 + vertexIndex];
-        }
-
-        private int light(int faceIndex, int vertexIndex) {
-            return lights[faceIndex * 4 + vertexIndex];
-        }
-    }
-
     /**
      * Samples ambient occlusion and lightmap coordinates exactly as the static
      * mold block model does.  Custom block-entity geometry bypasses chunk model
      * baking, so it must request these attributes explicitly.
      */
-    public static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
+    public static SpecialWorldLighting.Result captureWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                      BlockState blockState, MoldPattern pattern,
                                                      TextureAtlasSprite sprite) {
         return captureWorldLighting(level, position, blockState, pattern, sprite, Direction.NORTH);
     }
 
     /** Samples lighting after applying the same horizontal turn used for world submission. */
-    public static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
+    public static SpecialWorldLighting.Result captureWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                      BlockState blockState, MoldPattern pattern,
                                                      TextureAtlasSprite sprite, Direction facing) {
-        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildWorld(pattern), sprite, facing);
+        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildWorld(pattern), sprite, facing,
+                SpecialWorldRenderTypes.solid());
     }
 
     /**
@@ -646,124 +623,42 @@ public final class MoldMeshBuilder {
      * shade settings as the ceramic mesh, so cooling cannot make the two
      * adjacent render paths diverge in a dark world.
      */
-    public static WorldLighting captureFillWorldLighting(BlockAndTintGetter level, BlockPos position,
+    public static SpecialWorldLighting.Result captureFillWorldLighting(BlockAndTintGetter level, BlockPos position,
                                                          BlockState blockState, MoldPattern pattern,
                                                          TextureAtlasSprite sprite, Direction facing) {
-        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildFill(pattern), sprite, facing);
+        return captureWorldLighting(level, position, blockState, MoldMeshTopology.buildFill(pattern), sprite, facing,
+                SpecialWorldRenderTypes.translucent());
     }
 
-    private static WorldLighting captureWorldLighting(BlockAndTintGetter level, BlockPos position,
-                                                      BlockState blockState, List<MoldMeshTopology.Quad> sourceQuads,
-                                                      TextureAtlasSprite sprite, Direction facing) {
-        List<MoldMeshTopology.Quad> colorQuads = new ArrayList<>(sourceQuads.size());
-        List<MoldMeshTopology.Quad> lightQuads = new ArrayList<>(sourceQuads.size());
-        for (MoldMeshTopology.Quad quad : sourceQuads) {
-            MoldMeshTopology.Quad oriented = MoldMeshTopology.rotateForPresentation(quad, facing);
-            colorQuads.add(lightingProxy(oriented));
-            lightQuads.add(lightingLightProxy(oriented));
-        }
-        int[] colors = new int[colorQuads.size() * 4];
-        int[] lights = new int[lightQuads.size() * 4];
-        BlockModelLighter lighter = EnhancedBlockModelLighter.newInstance();
-        lighter.reset();
-        BakedQuad.MaterialInfo material = new BakedQuad.MaterialInfo(
-                sprite,
-                ChunkSectionLayer.SOLID,
-                RenderTypes.entitySolid(sprite.atlasLocation()),
-                -1,
-                true,
-                0,
-                true
-        );
-
-        for (int faceIndex = 0; faceIndex < colorQuads.size(); faceIndex++) {
-            BakedQuad colorQuad = bakedQuad(colorQuads.get(faceIndex), material);
-            BakedQuad lightQuad = bakedQuad(lightQuads.get(faceIndex), material);
-            QuadInstance sampledColor = new QuadInstance();
-            QuadInstance sampledLight = new QuadInstance();
-            // AO colour is sampled just above the collision shape so dynamic
-            // interior pixels match the static rim. Packed block/sky light is
-            // sampled on the actual rim plane so neighboring blocks continue
-            // to occlude sunlight exactly like vanilla block geometry.
-            lighter.prepareQuadAmbientOcclusion(level, blockState, position, colorQuad, sampledColor);
-            lighter.prepareQuadAmbientOcclusion(level, blockState, position, lightQuad, sampledLight);
-            for (int vertexIndex = 0; vertexIndex < 4; vertexIndex++) {
-                int offset = faceIndex * 4 + vertexIndex;
-                colors[offset] = sampledColor.getColor(vertexIndex);
-                lights[offset] = sampledLight.getLightCoords(vertexIndex);
+    /**
+     * Returns a compact light signature for every block position vanilla AO
+     * can inspect around a special block.  A block entity cannot rely only on
+     * its own packed light: sky light and neighbouring light sources can change
+     * while the block state remains untouched.
+     */
+    static long worldLightingFingerprint(BlockAndTintGetter level, BlockPos center) {
+        long fingerprint = 0xcbf29ce484222325L;
+        BlockPos.MutableBlockPos sample = new BlockPos.MutableBlockPos();
+        for (int y = -1; y <= 1; y++) {
+            for (int z = -1; z <= 1; z++) {
+                for (int x = -1; x <= 1; x++) {
+                    sample.set(center.getX() + x, center.getY() + y, center.getZ() + z);
+                    fingerprint ^= Integer.toUnsignedLong(LevelRenderer.getLightCoords(level, sample));
+                    fingerprint *= 0x100000001b3L;
+                }
             }
         }
-        return new WorldLighting(colors, lights);
+        return fingerprint;
     }
 
-    /**
-     * Samples horizontal surfaces just above the rim-height light plane.
-     *
-     * <p>A mold uses one two-pixel-tall collision shape. Asking vanilla AO to
-     * light a visible top face at {@code y=1} or {@code y=1.75} therefore
-     * treats it as if it were hidden inside a full slab, even though the
-     * ceramic rim leaves it visible. The same boundary issue applies to the
-     * dynamic solid pixels at exactly {@code y=2}: the custom BakedQuad path
-     * can still classify that face as being inside the collision shape. Lift
-     * every horizontal interior sample by a tiny epsilon so the inner pixels,
-     * carved floors, molten surfaces, and static rim all use the same top-plane
-     * light. The rendered geometry is unchanged; only the sampling proxy moves.
-     * Vertical cavity walls retain their physical directional shadowing.</p>
-     */
-    static MoldMeshTopology.Quad lightingProxy(MoldMeshTopology.Quad quad) {
-        if (quad.ny() <= 0.0F || quad.y0() > MoldMeshTopology.RIM_SURFACE_Y) {
-            return quad;
-        }
-        float sampleY = MoldMeshTopology.RIM_SURFACE_Y + 0.01F;
-        return withTopHeight(quad, sampleY);
-    }
-
-    /**
-     * Returns the packed-light sampling proxy on the actual rim plane.
-     *
-     * <p>This intentionally differs from {@link #lightingProxy}: moving a
-     * light sample above the collision shape can move it into an unoccluded
-     * air cell and incorrectly restore full daylight beneath a neighboring
-     * block. Keeping the light probe at the real top plane preserves vanilla
-     * sky/block-light occlusion while the color probe handles AO separately.</p>
-     */
-    static MoldMeshTopology.Quad lightingLightProxy(MoldMeshTopology.Quad quad) {
-        if (quad.ny() <= 0.0F || quad.y0() > MoldMeshTopology.RIM_SURFACE_Y) {
-            return quad;
-        }
-        return withTopHeight(quad, MoldMeshTopology.RIM_SURFACE_Y);
-    }
-
-    private static MoldMeshTopology.Quad withTopHeight(MoldMeshTopology.Quad quad, float y) {
-        return new MoldMeshTopology.Quad(
-                quad.x0(), y, quad.z0(),
-                quad.x1(), y, quad.z1(),
-                quad.x2(), y, quad.z2(),
-                quad.x3(), y, quad.z3(),
-                quad.nx(), quad.ny(), quad.nz()
-        );
-    }
-
-    private static BakedQuad bakedQuad(MoldMeshTopology.Quad quad, BakedQuad.MaterialInfo material) {
-        return new BakedQuad(
-                new Vector3f(quad.x0() / 16.0f, quad.y0() / 16.0f, quad.z0() / 16.0f),
-                new Vector3f(quad.x1() / 16.0f, quad.y1() / 16.0f, quad.z1() / 16.0f),
-                new Vector3f(quad.x2() / 16.0f, quad.y2() / 16.0f, quad.z2() / 16.0f),
-                new Vector3f(quad.x3() / 16.0f, quad.y3() / 16.0f, quad.z3() / 16.0f),
-                0L, 0L, 0L, 0L,
-                direction(quad),
-                material
-        );
-    }
-
-    private static Direction direction(MoldMeshTopology.Quad quad) {
-        if (quad.nx() > 0.0f) return Direction.EAST;
-        if (quad.nx() < 0.0f) return Direction.WEST;
-        if (quad.ny() > 0.0f) return Direction.UP;
-        if (quad.ny() < 0.0f) return Direction.DOWN;
-        if (quad.nz() > 0.0f) return Direction.SOUTH;
-        if (quad.nz() < 0.0f) return Direction.NORTH;
-        throw new IllegalArgumentException("A mold quad must have a non-zero normal");
+    private static SpecialWorldLighting.Result captureWorldLighting(BlockAndTintGetter level, BlockPos position,
+                                                      BlockState blockState, List<MoldMeshTopology.Quad> sourceQuads,
+                                                      TextureAtlasSprite sprite, Direction facing,
+                                                      SpecialWorldRenderTypes.Layer layer) {
+        List<MoldMeshTopology.Quad> oriented = sourceQuads.stream()
+                .map(quad -> MoldMeshTopology.rotateForPresentation(quad, facing))
+                .toList();
+        return SpecialWorldLighting.capture(level, position, blockState, oriented, sprite, layer);
     }
 
     private static void rotateYAround(PoseStack poseStack, float degrees, float centerX, float centerZ) {
@@ -800,7 +695,7 @@ public final class MoldMeshBuilder {
             TextureAtlasSprite sprite = quad.ny() > 0.0F ? topSprite : sideSprite;
             faces.add(face(quad, sprite.getU0(), sprite.getU1(), sprite.getV0(), sprite.getV1()));
         }
-        return new Mesh(faces, RenderTypes.entityTranslucent(topSprite.atlasLocation()));
+        return new Mesh(faces, SpecialWorldRenderTypes.translucent().renderType());
     }
 
     private static Face face(MoldMeshTopology.Quad quad, float spriteU0, float spriteU1,

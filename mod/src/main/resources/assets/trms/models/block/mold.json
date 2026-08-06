@@ -10,7 +10,6 @@
       "to": [16, 1, 16],
       "faces": {
         "down": {"texture": "#ceramic", "cullface": "down"},
-        "up": {"texture": "#ceramic"},
         "north": {"texture": "#ceramic", "cullface": "north"},
         "south": {"texture": "#ceramic", "cullface": "south"},
         "west": {"texture": "#ceramic", "cullface": "west"},

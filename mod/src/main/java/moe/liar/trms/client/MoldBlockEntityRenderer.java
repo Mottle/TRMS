@@ -61,10 +61,13 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
         net.minecraft.client.renderer.texture.TextureAtlasSprite sprite = sprites.get(
                 blockEntity.isBlank() ? MoldMeshBuilder.CLAY_SPRITE : MoldMeshBuilder.TERRACOTTA_SPRITE);
         if (blockEntity.getLevel() instanceof BlockAndTintGetter level) {
+            long lightingFingerprint = blockEntity.renderCache().lightingFingerprint(
+                    blockEntity.getLevel().getGameTime(),
+                    () -> MoldMeshBuilder.worldLightingFingerprint(level, blockEntity.getBlockPos()));
             state.worldLighting = blockEntity.renderCache().worldLighting(
                     pattern,
                     state.revision,
-                    state.lightCoords,
+                    lightingFingerprint,
                     sprite,
                     facing,
                     () -> MoldMeshBuilder.captureWorldLighting(
@@ -82,7 +85,7 @@ public final class MoldBlockEntityRenderer implements BlockEntityRenderer<MoldBl
                 state.fillWorldLighting = blockEntity.renderCache().fillWorldLighting(
                         pattern,
                         state.revision,
-                        state.lightCoords,
+                        lightingFingerprint,
                         fillSprite,
                         facing,
                         () -> MoldMeshBuilder.captureFillWorldLighting(

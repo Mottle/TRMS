@@ -12,8 +12,8 @@ public final class MoldBlockEntityRenderState extends BlockEntityRenderState {
     public @Nullable MoldFillMaterial fillMaterial;
     public int coolingTicks;
     public boolean isBlank;
-    public MoldMeshBuilder.WorldLighting worldLighting;
-    public MoldMeshBuilder.WorldLighting fillWorldLighting;
+    public SpecialWorldLighting.Result worldLighting;
+    public SpecialWorldLighting.Result fillWorldLighting;
     public Direction facing = Direction.NORTH;
     public boolean showFrontArrow;
     public boolean showCarvingGuide;

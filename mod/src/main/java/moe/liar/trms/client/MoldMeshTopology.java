@@ -20,11 +20,8 @@ public final class MoldMeshTopology {
     static final float FILL_SURFACE_Y = 1.75F;
     /** Top height shared by the fixed ceramic rim and the solid interior cells. */
     static final float RIM_SURFACE_Y = 2.0F;
-    /**
-     * Sits just above the baked base floor so a carved empty cell can receive
-     * the same client-side lighting treatment as its dynamic neighbours.
-     */
-    static final float CAVITY_FLOOR_Y = 1.001F;
+    /** The world mesh owns the cavity floor at the exact one-pixel base plane. */
+    static final float CAVITY_FLOOR_Y = 1.0F;
     /** Keeps translucent fill walls off the solid ceramic cavity walls. */
     static final float FILL_SIDE_INSET = 0.001F;
     /** A solid weapon part is one model pixel thick and has closed geometry on every display side. */
@@ -43,14 +40,13 @@ public final class MoldMeshTopology {
     }
 
     /**
-     * Builds world-only dynamic interior geometry, including a depth-biased
+     * Builds world-only dynamic interior geometry, including the canonical
      * floor for every carved cell.
      *
-     * <p>The block model owns the physical ceramic base at {@code y=1}. Its
-     * static face is evaluated inside this block's two-pixel collision shape,
-     * which makes the vanilla AO pipeline over-darken a visible carved floor.
-     * The dynamic floor is one thousandth of a model pixel above that face, so
-     * it replaces only its visible colour without coplanar depth fighting.</p>
+     * <p>The block model deliberately omits the base's upward face. The
+     * dynamic floor therefore has one canonical owner and is sampled at the
+     * same coordinates used for submission, without a depth or lighting
+     * compensation offset.</p>
      */
     static List<Quad> buildWorld(MoldPattern pattern) {
         List<Quad> quads = new ArrayList<>();
@@ -274,7 +270,7 @@ public final class MoldMeshTopology {
 
     public record Quad(float x0, float y0, float z0, float x1, float y1, float z1,
                        float x2, float y2, float z2, float x3, float y3, float z3,
-                       float nx, float ny, float nz) {
+                       float nx, float ny, float nz) implements SpecialWorldQuad {
         public Vertex vertex(int index, int overlay, int light) {
             if (index < 0 || index > 3) {
                 throw new IllegalArgumentException("Quad vertex index must be 0..3: " + index);
