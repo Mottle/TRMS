@@ -58,7 +58,7 @@ final class TrmsWeaponAssemblyNetwork {
             SESSIONS.remove(event.player().getUUID());
         });
         context.events().listen(ServerTickEvent.class,
-                event -> SESSIONS.purgeExpired(Integer.toUnsignedLong(event.tickCount())));
+                event -> SESSIONS.purgeExpired(TrmsServerClock.update(event.tickCount())));
     }
 
     private static void receiveStart(ExtensionConcurrencyContext concurrency, ServerCommonPacketListenerImpl listener) {
@@ -69,7 +69,7 @@ final class TrmsWeaponAssemblyNetwork {
 
     private static void startOnOwner(ServerPlayer player) {
         if (player.isSpectator() || !player.isCrouching()) return;
-        long now = currentServerTick(player);
+        long now = TrmsServerClock.currentTick();
         ItemStack casting = player.getMainHandItem();
         ItemStack stick = player.getOffhandItem();
         TrmsWeaponPart part = casting.get(TrmsContent.weaponPartComponent());
@@ -102,7 +102,7 @@ final class TrmsWeaponAssemblyNetwork {
         TrmsWeaponAssemblySessions.Session<TrmsWeaponPart> session = SESSIONS.get(player.getUUID());
         if (session == null || !session.id().equals(payload.sessionId())
                 || session.entityId() != player.getId()) return;
-        if (player.isSpectator() || currentServerTick(player) >= session.expiresAt()) {
+        if (player.isSpectator() || TrmsServerClock.currentTick() >= session.expiresAt()) {
             SESSIONS.remove(player.getUUID(), session.id());
             return;
         }
@@ -141,13 +141,5 @@ final class TrmsWeaponAssemblyNetwork {
         concurrency.submitOnRegion(player, () -> {
             SESSIONS.remove(player.getUUID(), payload.sessionId());
         });
-    }
-
-    private static long currentServerTick(ServerPlayer player) {
-        // Horizon's region-threaded server intentionally does not implement
-        // the global MinecraftServer tick counter.  The level clock is
-        // monotonic, persisted with the world, and safe to read on the
-        // player's owning region thread.
-        return player.level().getGameTime();
     }
 }

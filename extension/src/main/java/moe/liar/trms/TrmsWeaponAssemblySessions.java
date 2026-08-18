@@ -3,6 +3,7 @@ package moe.liar.trms;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Semaphore;
 
 /**
  * Thread-safe, server-tick-based lifecycle for one player's assembly preview.
@@ -15,9 +16,9 @@ import java.util.concurrent.ConcurrentHashMap;
 final class TrmsWeaponAssemblySessions<T> {
     private final long sessionTicks;
     private final long startCooldownTicks;
-    private final int maxSessions;
     private final Map<UUID, Session<T>> sessions = new ConcurrentHashMap<>();
     private final Map<UUID, Long> lastStartTicks = new ConcurrentHashMap<>();
+    private final Semaphore availableSessionSlots;
 
     TrmsWeaponAssemblySessions(long sessionTicks, long startCooldownTicks, int maxSessions) {
         if (sessionTicks <= 0 || startCooldownTicks < 0 || maxSessions <= 0) {
@@ -25,7 +26,7 @@ final class TrmsWeaponAssemblySessions<T> {
         }
         this.sessionTicks = sessionTicks;
         this.startCooldownTicks = startCooldownTicks;
-        this.maxSessions = maxSessions;
+        this.availableSessionSlots = new Semaphore(maxSessions);
     }
 
     BeginResult<T> begin(UUID playerId, int entityId, T input, long nowTick) {
@@ -38,12 +39,13 @@ final class TrmsWeaponAssemblySessions<T> {
         if (lastStart != null && nowTick - lastStart < startCooldownTicks) {
             return new BeginResult<>(BeginStatus.RATE_LIMITED, null);
         }
-        if (sessions.size() >= maxSessions) {
+        if (!availableSessionSlots.tryAcquire()) {
             return new BeginResult<>(BeginStatus.CAPACITY_REACHED, null);
         }
         Session<T> candidate = new Session<>(UUID.randomUUID(), entityId, input, nowTick + sessionTicks);
         Session<T> previous = sessions.putIfAbsent(playerId, candidate);
         if (previous != null) {
+            availableSessionSlots.release();
             return new BeginResult<>(BeginStatus.ALREADY_ACTIVE, previous);
         }
         lastStartTicks.put(playerId, nowTick);
@@ -56,11 +58,20 @@ final class TrmsWeaponAssemblySessions<T> {
 
     boolean remove(UUID playerId, UUID sessionId) {
         Session<T> current = sessions.get(playerId);
-        return current != null && current.id().equals(sessionId) && sessions.remove(playerId, current);
+        if (current == null || !current.id().equals(sessionId)
+                || !sessions.remove(playerId, current)) {
+            return false;
+        }
+        availableSessionSlots.release();
+        return true;
     }
 
     boolean remove(UUID playerId) {
-        return sessions.remove(playerId) != null;
+        if (sessions.remove(playerId) == null) {
+            return false;
+        }
+        availableSessionSlots.release();
+        return true;
     }
 
     int purgeExpired(long nowTick) {
@@ -68,6 +79,7 @@ final class TrmsWeaponAssemblySessions<T> {
         for (Map.Entry<UUID, Session<T>> entry : sessions.entrySet()) {
             if (entry.getValue().expiresAt() <= nowTick && sessions.remove(entry.getKey(), entry.getValue())) {
                 removed++;
+                availableSessionSlots.release();
             }
         }
         for (Map.Entry<UUID, Long> entry : lastStartTicks.entrySet()) {

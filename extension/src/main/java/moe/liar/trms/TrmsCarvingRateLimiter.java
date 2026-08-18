@@ -3,17 +3,17 @@ package moe.liar.trms;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Server-only accepted-action gate for the carving packet.
  *
  * <p>The client may send arbitrary packet bursts. A normal player action may
- * accept at most one carve per game tick, regardless of how many valid
- * revision values a modified client predicts. Entries expire after a bounded
- * idle retention window and the table has a fixed defensive capacity, so a
- * quiet server cannot retain an unbounded player history.</p>
+ * accept at most one carve per server tick, regardless of how many valid
+ * revision values a modified client predicts. Entries expire against the same
+ * process-wide server clock and the table has a fixed defensive capacity, so
+ * a quiet server cannot retain an unbounded player history.</p>
  */
 final class TrmsCarvingRateLimiter {
     private static final long RETENTION_TICKS = 20L * 60L * 5L;
@@ -21,8 +21,8 @@ final class TrmsCarvingRateLimiter {
     private static final int DEFAULT_MAX_TRACKED_PLAYERS = 4_096;
 
     private final ConcurrentHashMap<UUID, Long> lastAcceptedTickByPlayer = new ConcurrentHashMap<>();
-    private final Semaphore availablePlayerSlots;
     private final AtomicLong lastPruneTick = new AtomicLong(Long.MIN_VALUE);
+    private final Semaphore availablePlayerSlots;
 
     TrmsCarvingRateLimiter() {
         this(DEFAULT_MAX_TRACKED_PLAYERS);
@@ -72,7 +72,18 @@ final class TrmsCarvingRateLimiter {
         return lastAcceptedTickByPlayer.size();
     }
 
+    boolean remove(UUID playerId) {
+        Objects.requireNonNull(playerId, "playerId");
+        if (lastAcceptedTickByPlayer.remove(playerId) == null) {
+            return false;
+        }
+        availablePlayerSlots.release();
+        return true;
+    }
+
     private void discardStaleEntries(long gameTick) {
+        // The process-wide clock is shared by all dimensions, so one prune
+        // pass can reclaim every disconnected or idle player's slot.
         long previousPruneTick = lastPruneTick.get();
         if (previousPruneTick != Long.MIN_VALUE && gameTick - previousPruneTick < PRUNE_INTERVAL_TICKS) {
             return;

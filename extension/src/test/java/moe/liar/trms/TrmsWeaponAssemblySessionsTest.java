@@ -7,6 +7,12 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.Test;
 
 class TrmsWeaponAssemblySessionsTest {
@@ -62,5 +68,38 @@ class TrmsWeaponAssemblySessionsTest {
         assertNull(sessions.get(firstPlayer));
         assertEquals(second, sessions.get(secondPlayer));
         assertFalse(sessions.remove(firstPlayer, first.id()));
+    }
+
+    @Test
+    void concurrentStartsNeverExceedTheSessionCapacity() throws Exception {
+        int capacity = 4;
+        TrmsWeaponAssemblySessions<String> sessions = new TrmsWeaponAssemblySessions<>(1_200, 0, capacity);
+        int attempts = 64;
+        CountDownLatch ready = new CountDownLatch(attempts);
+        CountDownLatch start = new CountDownLatch(1);
+        ExecutorService executor = Executors.newFixedThreadPool(attempts);
+        List<Future<TrmsWeaponAssemblySessions.BeginStatus>> results = new ArrayList<>(attempts);
+        try {
+            for (int index = 0; index < attempts; index++) {
+                UUID player = UUID.randomUUID();
+                results.add(executor.submit(() -> {
+                    ready.countDown();
+                    start.await();
+                    return sessions.begin(player, 1, "part", 100).status();
+                }));
+            }
+            ready.await();
+            start.countDown();
+            long created = 0;
+            for (Future<TrmsWeaponAssemblySessions.BeginStatus> result : results) {
+                if (result.get() == TrmsWeaponAssemblySessions.BeginStatus.CREATED) {
+                    created++;
+                }
+            }
+            assertEquals(capacity, created);
+            assertEquals(capacity, sessions.size());
+        } finally {
+            executor.shutdownNow();
+        }
     }
 }

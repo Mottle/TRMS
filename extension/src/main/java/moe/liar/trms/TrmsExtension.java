@@ -12,6 +12,7 @@ public final class TrmsExtension implements HorizonExtension {
 
     @Override
     public void onInitialize(ExtensionContext context) {
+        TrmsServerClock.register(context);
         TrmsContent.register(context);
         TrmsProtocolHandshake.register(context);
         TrmsMoldCarvingNetwork.register(context);

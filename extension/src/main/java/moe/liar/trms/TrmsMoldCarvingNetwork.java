@@ -3,6 +3,7 @@ package moe.liar.trms;
 import moe.liar.trms.common.TrmsProtocol;
 import moe.liar.horizon.extension.ExtensionConcurrencyContext;
 import moe.liar.horizon.extension.ExtensionContext;
+import moe.liar.horizon.extension.event.PlayerQuitEvent;
 import moe.liar.horizon.extension.network.PayloadRequirement;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -32,6 +33,8 @@ final class TrmsMoldCarvingNetwork {
                 TrmsCarveMoldPayload.class,
                 (listener, payload) -> receive(context.concurrency(), listener, payload)
         );
+        context.events().listen(PlayerQuitEvent.class,
+                event -> CARVING_RATE_LIMITER.remove(event.player().getUUID()));
     }
 
     /**
@@ -91,7 +94,7 @@ final class TrmsMoldCarvingNetwork {
             return;
         }
 
-        long gameTick = level.getGameTime();
+        long gameTick = TrmsServerClock.currentTick();
         if (!mold.pattern().canCarve(cellX, cellZ)
                 || !CARVING_RATE_LIMITER.tryAcquire(player.getUUID(), gameTick)
                 || !mold.carve(cellX, cellZ)) {

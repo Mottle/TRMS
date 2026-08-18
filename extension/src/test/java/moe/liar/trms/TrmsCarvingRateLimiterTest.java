@@ -71,4 +71,17 @@ class TrmsCarvingRateLimiterTest {
         assertThrows(IllegalArgumentException.class, () -> new TrmsCarvingRateLimiter(0));
         assertThrows(IllegalArgumentException.class, () -> new TrmsCarvingRateLimiter(-1));
     }
+
+    @Test
+    void removesPlayerAndReclaimsTrackingCapacity() {
+        TrmsCarvingRateLimiter limiter = new TrmsCarvingRateLimiter(1);
+        UUID playerId = UUID.randomUUID();
+        UUID replacement = UUID.randomUUID();
+
+        assertTrue(limiter.tryAcquire(playerId, 40L));
+        assertTrue(limiter.remove(playerId));
+        assertEquals(0, limiter.trackedPlayerCount());
+        assertTrue(limiter.tryAcquire(replacement, 40L));
+        assertFalse(limiter.remove(playerId));
+    }
 }
