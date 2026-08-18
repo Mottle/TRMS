@@ -3,12 +3,10 @@ package moe.liar.trms.client;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Set;
-import javax.imageio.ImageIO;
 import org.junit.jupiter.api.Test;
 
 class WoodHandleTextureTest {
@@ -16,13 +14,13 @@ class WoodHandleTextureTest {
     void usesAnOpaqueSixteenPixelVanillaStickInspiredPalette() throws IOException {
         try (InputStream resource = getClass().getResourceAsStream(
                 "/assets/trms/textures/block/wood_handle.png")) {
-            BufferedImage image = ImageIO.read(resource);
-            assertEquals(16, image.getWidth());
-            assertEquals(16, image.getHeight());
+            PngTestImage image = PngTestImage.read(resource);
+            assertEquals(16, image.width());
+            assertEquals(16, image.height());
             Set<Integer> colors = new HashSet<>();
-            for (int y = 0; y < image.getHeight(); y++) {
-                for (int x = 0; x < image.getWidth(); x++) {
-                    int argb = image.getRGB(x, y);
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    int argb = image.pixel(x, y);
                     assertEquals(0xFF, (argb >>> 24) & 0xFF, "handle texture must not contain transparent pixels");
                     colors.add(argb & 0x00FFFFFF);
                 }

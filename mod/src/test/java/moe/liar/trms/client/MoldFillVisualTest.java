@@ -5,10 +5,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.InputStream;
-import javax.imageio.ImageIO;
 import moe.liar.trms.common.MoldCooling;
 import moe.liar.trms.common.MoldFillMaterial;
 import org.junit.jupiter.api.Test;
@@ -79,13 +77,12 @@ class MoldFillVisualTest {
     void cooledWeaponPartTextureIsOpaqueWhiteSoSideFacesRemainPurelyTinted() throws IOException {
         try (InputStream stream = getClass().getResourceAsStream("/assets/trms/textures/block/solid_metal.png")) {
             assertNotNull(stream, "missing pure metal base texture");
-            BufferedImage image = ImageIO.read(stream);
-            assertNotNull(image, "invalid pure metal base texture");
-            assertEquals(16, image.getWidth());
-            assertEquals(16, image.getHeight());
-            for (int y = 0; y < image.getHeight(); y++) {
-                for (int x = 0; x < image.getWidth(); x++) {
-                    assertEquals(0xFFFFFFFF, image.getRGB(x, y),
+            PngTestImage image = PngTestImage.read(stream);
+            assertEquals(16, image.width());
+            assertEquals(16, image.height());
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    assertEquals(0xFFFFFFFF, image.pixel(x, y),
                             "non-white metal texture pixel at (" + x + "," + y + ")");
                 }
             }
@@ -95,11 +92,10 @@ class MoldFillVisualTest {
     private void assertGreyscale(String resourcePath) throws IOException {
         try (InputStream resource = getClass().getResourceAsStream(resourcePath)) {
             assertNotNull(resource, "missing molten animation base: " + resourcePath);
-            BufferedImage image = ImageIO.read(resource);
-            assertNotNull(image, "invalid PNG resource: " + resourcePath);
-            for (int y = 0; y < image.getHeight(); y++) {
-                for (int x = 0; x < image.getWidth(); x++) {
-                    int pixel = image.getRGB(x, y);
+            PngTestImage image = PngTestImage.read(resource);
+            for (int y = 0; y < image.height(); y++) {
+                for (int x = 0; x < image.width(); x++) {
+                    int pixel = image.pixel(x, y);
                     int red = pixel >>> 16 & 0xFF;
                     int green = pixel >>> 8 & 0xFF;
                     int blue = pixel & 0xFF;
